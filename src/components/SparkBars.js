@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 var d3 = require('d3');
 import _ from 'supergroup';
+//import ReactTooltip from '../react-tooltip/dist/index';
 import ReactTooltip from 'react-tooltip';
 
 
@@ -17,13 +18,24 @@ import ReactTooltip from 'react-tooltip';
  *           defaults to bar value
  *          
  */
-class SparkBarsChart extends Component {
+export class SparkbarTooltip extends Component {
+	render() {
+		let ret;
+		if (this.props.rollup) {
+			ret = <ReactTooltip id='sparkbar'></ReactTooltip>;
+		} else {
+			ret = (<div>Nothing in the tooltip</div>);
+		}
+		return ret;
+	}
+}
+					
+export class SparkBarsChart extends Component {
   shouldComponentUpdate(nextProps, nextState) {
     return this.props.things !== nextProps.things ||
            this.props.highlighted !== nextProps.highlighted;
   }
   render() {
-		console.log(d3.version);
     const {passthrough, width, height, 
         isHighlighted, highlight, endHighlight} = this.props;
     const valFunc = this.props.valFunc || (d=>d);
@@ -36,10 +48,12 @@ class SparkBarsChart extends Component {
     var barWidth = width / things.length;
     var bars = [];
     var self = this;
+		var ttid = `tt_${this._reactInternalInstance._rootNodeID}`;
     things
         .forEach(function(thing, i) {
           bars.push(
             <SparkBarsBar
+								ttid={ttid}
                 passthrough={passthrough}
                 thing={thing}
                 valFunc={valFunc}
@@ -55,7 +69,18 @@ class SparkBarsChart extends Component {
                 />);
         });
     return (<div>
-              <svg width={width} height={height}>
+							<ReactTooltip id={ttid} 
+								html={true}
+								getContent={
+									() => {
+										console.log(things);
+										//things[0].records[0], null, 2)}</pre>`;
+										return `<pre>${JSON.stringify(things[0].records[0], null, 2)}</pre>`;
+									}}
+							/>
+              <svg width={width} height={height}
+								data-tip=''
+								data-for={ttid}>
                 {bars}
               </svg>
             </div>);
@@ -66,23 +91,27 @@ SparkBarsChart.propTypes = {
   width: PropTypes.number.isRequired,
   height: PropTypes.number.isRequired,
 };
-export default SparkBarsChart;
 
+const barStyles = 
+  _.chain([true,false])
+   .map( highlighted => 
+          _.map( ['normal', 'background'], type => 
+                [type + highlighted, barStyle(type, highlighted)]
+               )
+       )
+   .flatten().fromPairs().value();
 class SparkBarsBar extends Component {
     render() {
       let {passthrough, thing, valFunc, i, yscale, chartHeight, 
         x, barWidth, highlight, isHighlighted, endHighlight} = this.props;
       const height = yscale(valFunc(thing, i));
-      const y = chartHeight - height;
+      //const y = chartHeight - height;
       highlight = highlight || _.noop;
       isHighlighted = isHighlighted || _.noop;
       endHighlight = endHighlight || _.noop;
       let highlighted = isHighlighted(thing,passthrough,i)
       return (
-        <g transform={"translate(" + x + ")"}
-						data-tip=''
-						data-for='sparkbar'
-				>
+        <g transform={"translate(" + x + ")"} >
           <rect
                   style={barStyles['background' + !!highlighted]}
                   width={barWidth}
@@ -117,11 +146,3 @@ function barStyle(type, highlighted) {
     opacity: opacities[type] / (highlighted ? 1 : 2)
   };
 }
-const barStyles = 
-  _.chain([true,false])
-   .map( highlighted => 
-          _.map( ['normal', 'background'], type => 
-                [type + highlighted, barStyle(type, highlighted)]
-               )
-       )
-   .flatten().fromPairs().value();

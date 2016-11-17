@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import _ from 'supergroup';
 var d3 = require('d3');
-import SparkBarsChart from './components/SparkBars';
+
+import {SparkBarsChart} from './components/SparkBars';
 
 export class DrugRollupContainer extends Component {
 	constructor() {
@@ -23,8 +24,8 @@ export class DrugRollupContainer extends Component {
 			console.error('parsing failed', ex)
 		});
 	}
-	setRollup(rollup) {
-		this.setState({rollup});
+	setContainerState(key, val) {
+		this.setState({[key]: val});
 	}
 	dataPrep(json) {
 		let recs = json.map(
@@ -53,7 +54,8 @@ export class DrugRollupContainer extends Component {
 					(child) => React.cloneElement(child, { 
 						rollups: this.state.rollups, 
 						rollup: this.state.rollup,
-						setRollup: this.setRollup.bind(this),
+						concept: this.state.concept,
+						setContainerState: this.setContainerState.bind(this),
 					}));
 		return (
 			<div>
@@ -64,26 +66,33 @@ export class DrugRollupContainer extends Component {
 	}
 }
 export class RollupList extends Component {
-	constructor(props) {
-		super(props);
-		this.state = { rollup: null};
-	}
 	render() {
-		//console.log(this.props.rollups);
-		return (
-			<div className="drugrollup">
-				Drug rollups available:
-				<ul> {this.props.rollups.map(this.renderRollup.bind(this))} </ul>
-			</div>
-		);
-	}
-	renderRollup(rollup) {
-		return (
-			<li key={rollup.toString()}>
-				<a href="#" style={{cursor:'pointer'}} 
-						onClick={()=>this.props.setRollup(rollup)}>{rollup.toString()}</a>
-			</li>
-		);
+		const {rollups, rollup, concept, setContainerState} = this.props;
+		if (!rollup) { // show all rollups
+			return (
+				<div className="drugrollup">
+					Drug rollups available:
+					<ul>
+						{rollups.map(rollup =>
+							<li key={rollup.toString()}>
+								<a href="#" style={{cursor:'pointer'}} 
+										onClick={()=>setContainerState('rollup',rollup)}>{rollup.toString()}</a>
+							</li>)}
+					</ul>
+				</div>
+			);
+		} else { // already picked a rollup
+			return (
+				<div>
+					<h1>rollup stats</h1>
+					<RollupStats 
+							rollup={rollup} 
+							concept={concept} 
+							setContainerState={setContainerState} 
+							/>
+				</div>
+			);
+		}
 	}
 }
 
@@ -96,24 +105,45 @@ export class RollupStats extends Component {
 	}
 	*/
 	render() {
-		let {rollup} = this.props;
-		if (rollup) {
-			rollup.children = rollup.children.sortBy(d=>-d.aggregate(_.sum, 'personCount'));
+		const {rollup, concept, setContainerState} = this.props;
+		if (!rollup) {
+			throw new Error("shouldn't be here");
 		}
-		console.log(rollup);
-		return (
-			<div className="drugrollup">Rollup Stats!!
-				{rollup ? rollup.toString() : 'no rollup chosen'}
-				<br/>
-				<ul> {rollup && rollup.children.map(this.renderConcept.bind(this))} </ul>
-			</div>
-		);
+		if (!concept) { // show all concepts in rollup
+			let concepts = rollup.children.sortBy(d=>-d.aggregate(_.sum, 'personCount'));
+			let list = concepts.map(concept => {
+				return <li key={concept.toString()} >
+									<a href="#" style={{cursor:'pointer'}} 
+										onClick={()=>setContainerState('concept',concept)}>{concept.toString()}</a>:
+									<ConceptSummary
+										concept={concept}
+										setContainerState={setContainerState}
+									/></li>;
+			});
+			return (
+				<div className="drugrollup">
+					{rollup.toString()}
+					<br/>
+					<ul>{list}</ul>
+				</div>
+			);
+		} else { // concept already chosen
+			return	<div>
+								{concept.toString()}:
+								<ConceptSummary
+									concept={concept}
+									setContainerState={setContainerState}
+									/>
+							</div>;
+		}
 	}
-	renderConcept(concept) {
+}
+
+export class ConceptSummary extends Component {
+	render() {
+		const {concept} = this.props;
 		return (
-			<li key={concept.toString()}>
-				{concept.toString()}:
-				<br/>
+			<div>
 				{commify(concept.aggregate(_.sum, 'personCount'))} patients,
 				{commify(concept.aggregate(_.sum, 'expCount'))} exposures,
 				<SparkBarsChart
@@ -127,7 +157,7 @@ export class RollupStats extends Component {
 						}}
 						sortBy={ntile=>ntile.valueOf()}
 						/>
-			</li>
+			</div>
 		);
 	}
 }

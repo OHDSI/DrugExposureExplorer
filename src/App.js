@@ -2,8 +2,8 @@ import React, { Component } from 'react';
 //import logo from './logo.svg';
 import './App.css';
 import _ from 'supergroup';
-import {DrugRollupContainer, RollupList, RollupStats} from './DrugRollupStats';
-import ReactTooltip from 'react-tooltip';
+import {DrugRollupContainer, RollupList} from './DrugRollupStats';
+//import * as util from './ohdsi.util';
 
 class App extends Component {
   render() {
@@ -15,14 +15,7 @@ class App extends Component {
         <div className="App-intro">
 					<DrugRollupContainer>
 						<RollupList  />
-						<RollupStats  />
 					</DrugRollupContainer>
-					<ReactTooltip id='sparkbar' 
-						getContent={() => {
-							console.log('tooltip',arguments);
-							return 'blah blah';
-						} }/>
-					
         </div>
       </div>
     );
