@@ -7,7 +7,10 @@
   },
   "dependencies": {
     "d3": "^4.3.0",
+    "fixed-data-table": "^0.6.3",
+    "lz-string": "^1.4.4",
     "react": "^15.3.2",
+    "react-bootstrap": "^0.30.6",
     "react-dom": "^15.3.2",
     "react-tooltip": "^3.2.1",
     "supergroup": "^1.1.3"

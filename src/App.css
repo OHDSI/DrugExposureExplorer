@@ -46,3 +46,27 @@
   stroke-width: 1.5px;
 }
 
+div.timedist {
+	float: left;
+	margin: 5px;
+}
+div.timelines {
+	float: none;
+	margin: 5px;
+	border: 1px gray dotted;
+}
+.timedist rect {
+	fill-opacity: 0;
+	stroke-width: 1.5;
+	stroke: black;
+}
+.timedist line.zero {
+	stroke: red;
+}
+.timedist line.bar {
+	stroke: brown;
+	stroke-width: 1;
+}
+.rollup-table {
+	margin: 10px;
+}
