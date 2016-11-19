@@ -24,7 +24,7 @@
 }
 
 .drugrollup {
-	text-align: left;
+  text-align: left;
 }
 
 
@@ -47,26 +47,48 @@
 }
 
 div.timedist {
-	float: left;
-	margin: 5px;
+  float: left;
+  margin: 5px;
 }
 div.timelines {
-	float: none;
-	margin: 5px;
-	border: 1px gray dotted;
+  margin: 5px;
+  border: 1px dotted pink;
+}
+div.timeline {
+	width: 100%;
+}
+.timeline svg {
+	border: 1px solid purple;
+}
+rect.era {
+	fill: purple;
+	opacity: .3;
 }
 .timedist rect {
-	fill-opacity: 0;
-	stroke-width: 1.5;
-	stroke: black;
+  fill-opacity: 0;
+  stroke-width: 1.5;
+  stroke: black;
 }
 .timedist line.zero {
-	stroke: red;
+  stroke: red;
 }
 .timedist line.bar {
-	stroke: brown;
-	stroke-width: 1;
+  stroke: brown;
+  stroke-width: 1;
 }
 .rollup-table {
-	margin: 10px;
+  margin: 10px;
+}
+.axis path {
+  display: none;
+}
+
+.axis line {
+  shape-rendering: crispEdges;
+  stroke: #000;
+}
+
+.axis .minor line {
+  stroke: #777;
+  stroke-dasharray: 2,2;
 }

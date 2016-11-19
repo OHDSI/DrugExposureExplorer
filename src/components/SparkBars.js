@@ -19,17 +19,17 @@ import ReactTooltip from 'react-tooltip';
  *          
  */
 export class SparkbarTooltip extends Component {
-	render() {
-		let ret;
-		if (this.props.rollup) {
-			ret = <ReactTooltip id='sparkbar'></ReactTooltip>;
-		} else {
-			ret = (<div>Nothing in the tooltip</div>);
-		}
-		return ret;
-	}
+  render() {
+    let ret;
+    if (this.props.rollup) {
+      ret = <ReactTooltip id='sparkbar'></ReactTooltip>;
+    } else {
+      ret = (<div>Nothing in the tooltip</div>);
+    }
+    return ret;
+  }
 }
-					
+          
 export class SparkBarsChart extends Component {
   shouldComponentUpdate(nextProps, nextState) {
     return this.props.things !== nextProps.things ||
@@ -48,12 +48,12 @@ export class SparkBarsChart extends Component {
     var barWidth = width / things.length;
     var bars = [];
     var self = this;
-		var ttid = `tt_${this._reactInternalInstance._rootNodeID}`;
+    var ttid = `tt_${this._reactInternalInstance._rootNodeID}`;
     things
         .forEach(function(thing, i) {
           bars.push(
             <SparkBarsBar
-								ttid={ttid}
+                ttid={ttid}
                 passthrough={passthrough}
                 thing={thing}
                 valFunc={valFunc}
@@ -69,18 +69,18 @@ export class SparkBarsChart extends Component {
                 />);
         });
     return (<div>
-							<ReactTooltip id={ttid} 
-								html={true}
-								getContent={
-									() => {
-										console.log(things);
-										//things[0].records[0], null, 2)}</pre>`;
-										return `<pre>${JSON.stringify(things[0].records[0], null, 2)}</pre>`;
-									}}
-							/>
+              <ReactTooltip id={ttid} 
+                html={true}
+                getContent={
+                  () => {
+                    console.log(things);
+                    //things[0].records[0], null, 2)}</pre>`;
+                    return `<pre>${JSON.stringify(things[0].records[0], null, 2)}</pre>`;
+                  }}
+              />
               <svg width={width} height={height}
-								data-tip=''
-								data-for={ttid}>
+                data-tip=''
+                data-for={ttid}>
                 {bars}
               </svg>
             </div>);
