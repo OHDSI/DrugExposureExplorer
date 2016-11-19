@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 var d3 = require('d3');
 import _ from 'supergroup';
 //import ReactTooltip from '../react-tooltip/dist/index';
-import ReactTooltip from 'react-tooltip';
+//import ReactTooltip from 'react-tooltip';
 
 
 /*
@@ -18,6 +18,7 @@ import ReactTooltip from 'react-tooltip';
  *           defaults to bar value
  *          
  */
+/*
 export class SparkbarTooltip extends Component {
   render() {
     let ret;
@@ -29,6 +30,7 @@ export class SparkbarTooltip extends Component {
     return ret;
   }
 }
+*/
           
 export class SparkBarsChart extends Component {
   shouldComponentUpdate(nextProps, nextState) {
@@ -68,7 +70,7 @@ export class SparkBarsChart extends Component {
                 key={i}
                 />);
         });
-    return (<div>
+							/*
               <ReactTooltip id={ttid} 
                 html={true}
                 getContent={
@@ -78,6 +80,8 @@ export class SparkBarsChart extends Component {
                     return `<pre>${JSON.stringify(things[0].records[0], null, 2)}</pre>`;
                   }}
               />
+							*/
+    return (<div>
               <svg width={width} height={height}
                 data-tip=''
                 data-for={ttid}>

@@ -747,8 +747,13 @@ export class Timeline extends Component {
     //return <pre>{JSON.stringify(eras, null, 2)}</pre>;
     let bars = eras.map((era,i) => {
       const tooltip = (
-        <Tooltip id="tooltip"><pre>{JSON.stringify(era,null,2)}</pre></Tooltip>
+        <Tooltip id="tooltip">
+          Era {era.era_num} combines {era.exposures} exposures
+          with {era.total_days_supply} total days supply
+          over {era.era_days} days in era.
+        </Tooltip>
       );
+          //<pre>{JSON.stringify(era,null,2)}</pre>
       return (
               <OverlayTrigger placement="left" overlay={tooltip}>
                 <rect  className="era"
