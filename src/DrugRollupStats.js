@@ -21,7 +21,7 @@ export class RollupListContainer extends Component {
   }
   componentDidMount() {
     window.util = util;
-    util.cachedFetch('http://0.0.0.0:3000/api/DrugRollupStats')
+    util.cachedJsonFetch('http://0.0.0.0:3000/api/DrugRollupStats')
       .then(function(json) {
         let rollups = this.dataPrep(json);
         this.setState({rollups});
@@ -446,61 +446,41 @@ export class DistSeriesContainer extends Component {
   }
   componentDidMount() {
     const {conceptId} = this.props;
-    util.cachedFetch(
-        'http://localhost:3000/api/daysupplies/postCall',
-        {
-          method: 'post',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+    let params = {
             ntiles: this.state.ntiles,
             conceptid: conceptId,
             exp_or_gap: 'exp'
-          })
-        })
-        .then(function(json) {
-          let recs = json.map( rec => {
-              rec.avg = parseFloat(rec.avg);
-              rec.count = parseFloat(rec.count);
-              rec.exp_or_gap_num = parseFloat(rec.exp_or_gap_num);
-              return rec;
-            }
-          );
-          var daysupply = _.sortBy(recs, 'avg');
-          this.setState({daysupply});
-        }.bind(this))
-        /*
-        .catch(function(ex) {
-          console.error('parsing failed', ex)
-        });
-        */
+          };
+    util.cachedPostJsonFetch(
+      'http://localhost:3000/api/daysupplies/postCall',
+      params)
+    .then(function(json) {
+      let recs = json.map( rec => {
+          rec.avg = parseFloat(rec.avg);
+          rec.count = parseFloat(rec.count);
+          rec.exp_or_gap_num = parseFloat(rec.exp_or_gap_num);
+          return rec;
+        }
+      );
+      var daysupply = _.sortBy(recs, 'avg');
+      this.setState({daysupply});
+    }.bind(this))
 
-      util.cachedFetch(
-        'http://localhost:3000/api/daysupplies/postCall',
-        {
-          method: 'post',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ntiles: this.state.ntiles,
-            conceptid: conceptId,
-            exp_or_gap: 'gap'
-          })
-        })
-        .then(function(json) {
-          let recs = json.map( rec => {
-              rec.avg = parseFloat(rec.avg);
-              rec.count = parseFloat(rec.count);
-              rec.exp_or_gap_num = parseFloat(rec.exp_or_gap_num);
-              return rec;
-            }
-          );
-          var gaps = _.sortBy(recs, 'avg');
-          this.setState({gaps});
-        }.bind(this))
-        /*
-        .catch(function(ex) {
-          console.error('parsing failed', ex)
-        });
-        */
+    params.exp_or_gap = 'gap';
+    util.cachedPostJsonFetch(
+      'http://localhost:3000/api/daysupplies/postCall',
+      params)
+    .then(function(json) {
+      let recs = json.map( rec => {
+          rec.avg = parseFloat(rec.avg);
+          rec.count = parseFloat(rec.count);
+          rec.exp_or_gap_num = parseFloat(rec.exp_or_gap_num);
+          return rec;
+        }
+      );
+      var gaps = _.sortBy(recs, 'avg');
+      this.setState({gaps});
+    }.bind(this))
   }
   render() {
     const {concept, conceptId} = this.props;
@@ -600,24 +580,16 @@ export class SampleTimelinesContainer extends Component {
   componentDidMount() {
     const {conceptId} = this.props;
     const {howmany} = this.state;
-    util.cachedFetch(
-      'http://localhost:3000/api/People/frequentUsersPost',
-      {
-        method: 'post',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    let params = {
           howmany: howmany,
           conceptid: conceptId,
-        })
-      })
-      .then(function(json) {
-        this.setState({frequentUsers:json});
-      }.bind(this))
-      /*
-      .catch(function(ex) {
-        console.error('parsing failed', ex)
-      });
-      */
+    };
+    util.cachedPostJsonFetch(
+      'http://localhost:3000/api/People/frequentUsersPost',
+      params)
+    .then(function(json) {
+      this.setState({frequentUsers:json});
+    }.bind(this))
   }
   render() {
     const {concept, conceptId, width, noEras, maxgap} = this.props;
@@ -661,28 +633,15 @@ export class TimelineContainer extends Component {
   }
   fetchExposures() {
     const {personId, conceptId, concept} = this.props;
+    this.setState({fetchingExposures:true});
     let params = { conceptid:conceptId,
                    personid: personId };
-    console.log(
-      `http://localhost:3000/api/drug_exposure_rollups/getcall?personid=${personId}&conceptid=${conceptId}`);
-    this.setState({fetchingExposures:true})
-    util.cachedFetch(
+    util.cachedPostJsonFetch(
       'http://localhost:3000/api/drug_exposure_rollups/postCall',
-      {
-        method: 'post',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
-      })
-      .then(function(json) {
-        this.setState({exposures:json, fetchingExposures:false});
-      }.bind(this))
-      /*
-      .catch(function(ex) {
-        console.error('parsing failed', ex)
-        throw ex;
-      });
-      */
-      
+      params)
+    .then(function(json) {
+      this.setState({exposures:json, fetchingExposures:false});
+    }.bind(this))
   }
   fetchEras(noEras, maxgap) {
     if (noEras) {
@@ -692,27 +651,15 @@ export class TimelineContainer extends Component {
     const {personId, conceptId, concept} = this.props;
     maxgap = parseInt(maxgap, 10);
     if (isNaN(maxgap)) return;
+    this.setState({fetchingEras:true})
     let params = { maxgap,
                    conceptid:conceptId,
                    personid: personId };
-    console.log(
-      `http://localhost:3000/api/eras/getCall?maxgap=${maxgap}&conceptid=${conceptId}&personid=${personId}`);
-    this.setState({fetchingEras:true})
-    util.cachedFetch(
-      'http://localhost:3000/api/eras/postCall',
-      {
-        method: 'post',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
-      })
-      .then(function(json) {
-        this.setState({eras:json, fetchingEras:false});
-      }.bind(this))
-      /*
-      .catch(function(ex) {
-        console.error('parsing failed', ex)
-      });
-      */
+    util.cachedPostJsonFetch(
+      'http://localhost:3000/api/eras/postCall', params)
+    .then(function(json) {
+      this.setState({eras:json, fetchingEras:false});
+    }.bind(this))
   }
   render() {
     const {exposures, eras, fetchingExposures, fetchingEras} = this.state;

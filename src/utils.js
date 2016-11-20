@@ -13,7 +13,7 @@ var ALLOW_CACHING = [
 //var cache = {}; // only save till reload
 //var cache = localStorage; // save indefinitely
 var cache = sessionStorage; // save for session
-export function cachedFetch(url, opts={}) {	
+export function cachedJsonFetch(url, opts={}) {	
 	var allowed = _.find(ALLOW_CACHING, allowedUrl => url.match(allowedUrl));
 	if (allowed) {
 		//console.log(`using cache for ${url}. remove ${allowed} from ohdsi.util.ALLOW_CACHING to disable caching for it`);
@@ -36,6 +36,15 @@ export function cachedFetch(url, opts={}) {
 			resolve(results);
 		}
 	});
+}
+export function cachedPostJsonFetch(url, params={}) {
+	var qs = _.map(params, (v,k) => `${v}=$k`).join('&');
+	console.log(`${url}?${qs}`);
+	return cachedJsonFetch(url, {
+						method: 'post',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(params),
+					});
 }
 export function storagePut(key, val, store = sessionStorage) {
 	store[key] = LZString.compressToBase64(JSON.stringify(val));
