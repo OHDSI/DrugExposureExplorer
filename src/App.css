@@ -52,17 +52,24 @@ div.timedist {
 }
 div.timelines {
   margin: 5px;
-  border: 1px dotted pink;
 }
 div.timeline {
 	width: 100%;
+	background-color: cornsilk;
+	border: 1px solid gray;
+	margin: 7px;
+  border-radius: 2%/8%;
+	padding: 4px;
 }
 .timeline svg {
-	border: 1px solid purple;
+}
+rect.exposure {
+	fill: darkorange;
+	stroke: black;
+	opacity: .3;
 }
 rect.era {
-	fill: purple;
-	opacity: .3;
+	fill: lightgray;
 }
 .timedist rect {
   fill-opacity: 0;
@@ -75,6 +82,11 @@ rect.era {
 .timedist line.bar {
   stroke: brown;
   stroke-width: 1;
+}
+div.timeline .description span {
+	background-color: antiquewhite;
+	border-radius: 4px;
+	padding: 1px;
 }
 .rollup-table {
   margin: 10px;

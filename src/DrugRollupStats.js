@@ -26,9 +26,11 @@ export class RollupListContainer extends Component {
         let rollups = this.dataPrep(json);
         this.setState({rollups});
       }.bind(this))
+      /*
       .catch(function(ex) {
         console.error('parsing failed', ex)
       });
+      */
   }
   /*
   setContainerState(obj) {
@@ -234,7 +236,7 @@ export class RollupTable extends Component {
               let { clientWidth } = this.refs.modalBody;
               if (this.state.modalWidth !== clientWidth)
                 this.setState({modalWidth:clientWidth});
-            }).bind(this)}
+            })}
             >
           <Modal.Header closeButton>
             <Modal.Title>{concept && concept.toString()}</Modal.Title>
@@ -333,13 +335,6 @@ export class RollupTable extends Component {
   }
   */
 }
-
-
-const ImageCell = ({rowIndex, data, col, ...props}) => (
-  <ExampleImage
-    src={data.getObjectAt(rowIndex)[col]}
-  />
-);
 
 const StringCell = ({rowIndex, data, col, ...props}) => (
   <Cell {...props}>
@@ -473,9 +468,11 @@ export class DistSeriesContainer extends Component {
           var daysupply = _.sortBy(recs, 'avg');
           this.setState({daysupply});
         }.bind(this))
+        /*
         .catch(function(ex) {
           console.error('parsing failed', ex)
         });
+        */
 
       util.cachedFetch(
         'http://localhost:3000/api/daysupplies/postCall',
@@ -499,9 +496,11 @@ export class DistSeriesContainer extends Component {
           var gaps = _.sortBy(recs, 'avg');
           this.setState({gaps});
         }.bind(this))
+        /*
         .catch(function(ex) {
           console.error('parsing failed', ex)
         });
+        */
   }
   render() {
     const {concept, conceptId} = this.props;
@@ -614,10 +613,11 @@ export class SampleTimelinesContainer extends Component {
       .then(function(json) {
         this.setState({frequentUsers:json});
       }.bind(this))
+      /*
       .catch(function(ex) {
         console.error('parsing failed', ex)
       });
-      
+      */
   }
   render() {
     const {concept, conceptId, width, noEras, maxgap} = this.props;
@@ -643,26 +643,61 @@ export class TimelineContainer extends Component {
   constructor(props) {
     super(props);
     this.state = { 
-      eras: null,
+      eras: [],
+      exposures: [],
+      fetchingExposures: false,
+      fetchingEras: false,
     };
   }
   componentDidMount() {
     const {noEras, maxgap} = this.props;
     this.fetchEras(noEras, maxgap);
+    this.fetchExposures();
   }
   componentWillReceiveProps(nextProps) {
     const {noEras, maxgap} = nextProps;
     this.fetchEras(noEras, maxgap);
+    this.fetchExposures();
+  }
+  fetchExposures() {
+    const {personId, conceptId, concept} = this.props;
+    let params = { conceptid:conceptId,
+                   personid: personId };
+    console.log(
+      `http://localhost:3000/api/drug_exposure_rollups/getcall?personid=${personId}&conceptid=${conceptId}`);
+    this.setState({fetchingExposures:true})
+    util.cachedFetch(
+      'http://localhost:3000/api/drug_exposure_rollups/postCall',
+      {
+        method: 'post',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      })
+      .then(function(json) {
+        this.setState({exposures:json, fetchingExposures:false});
+      }.bind(this))
+      /*
+      .catch(function(ex) {
+        console.error('parsing failed', ex)
+        throw ex;
+      });
+      */
+      
   }
   fetchEras(noEras, maxgap) {
+    if (noEras) {
+      this.setState({eras:[]});
+      return;
+    }
     const {personId, conceptId, concept} = this.props;
-    maxgap = parseInt(maxgap);
+    maxgap = parseInt(maxgap, 10);
     if (isNaN(maxgap)) return;
     let params = { maxgap,
                    conceptid:conceptId,
                    personid: personId };
     console.log(
       `http://localhost:3000/api/eras/getCall?maxgap=${maxgap}&conceptid=${conceptId}&personid=${personId}`);
+    this.setState({fetchingEras:true})
     util.cachedFetch(
       'http://localhost:3000/api/eras/postCall',
       {
@@ -671,22 +706,29 @@ export class TimelineContainer extends Component {
         body: JSON.stringify(params),
       })
       .then(function(json) {
-        this.setState({eras:json});
+        this.setState({eras:json, fetchingEras:false});
       }.bind(this))
+      /*
       .catch(function(ex) {
         console.error('parsing failed', ex)
       });
-      
+      */
   }
   render() {
-    const {eras} = this.state;
-    const {width, concept, personId} = this.props;
-    if (eras) {
-      return <Timeline eras={eras} width={width} 
+    const {exposures, eras, fetchingExposures, fetchingEras} = this.state;
+    const {noEras, width, concept, personId} = this.props;
+    if( fetchingExposures || fetchingEras ) {
+      return (
+        <div className="waiting">
+          {fetchingExposures ? `Fetching exposures for ${personId} / ${concept.toString()}` : ''}
+          {fetchingEras ? `Fetching eras for ${personId} / ${concept.toString()}` : ''}
+        </div>);
+    } else if (eras.length || (noEras && exposures.length)) {
+      return <Timeline exposures={exposures} eras={eras} 
+                width={width} 
                 concept={concept} personId={personId}/>;
-    } else {
-      return <div className="waiting">Waiting for era data...</div>;
     }
+    return <div>Waiting for something to happen</div>;
   }
 }
 export class Timeline extends Component {
@@ -696,20 +738,32 @@ export class Timeline extends Component {
     };
   }
   componentDidMount() {
-    const {eras, concept, personId} = this.props;
+    const {eras, exposures, concept, personId} = this.props;
+    let lastday;
+    if (eras && eras.length) {
+      lastday = _.last(eras).days_from_first_era +
+                _.last(eras).era_days;
+    } else if (exposures && exposures.length) {
+      lastday = _.last(exposures).days_from_first +
+                _.last(exposures).days_supply;
+    } else {
+      throw new Error("why?");
+    }
     const height = 40;
-    let svgLayout = new util.SvgLayout(
-          this.refs.timelinediv.clientWidth, 
-          height,
+    let div = this.refs.timelinediv;
+    const css = window.getComputedStyle(div, null);
+    const width = div.clientWidth - parseFloat(css.paddingLeft)
+                                  - parseFloat(css.paddingRight);
+    let lo = new util.SvgLayout(
+          width, height,
           { top: { margin: { size: 2}, },
             bottom: { margin: { size: 20}, },
             left: { margin: { size: 5}, },
             right: { margin: { size: 5}, },
           });
     let x = d3.scaleLinear()
-              .range([0, svgLayout.chartWidth()])
-              .domain([0, _.last(eras).days_from_first_era +
-                          _.last(eras).era_days]);
+              .range([0, lo.chartWidth()])
+              .domain([0, lastday]);
     let xAxis = d3.axisBottom()
                 .scale(x)
                 //.tickFormat(this.chartProp.format)
@@ -727,27 +781,46 @@ export class Timeline extends Component {
 
     this.setState({
       height,
-      svgLayout, x, xAxis//, tip
+      lo, x, xAxis, lastday
     });
   }
   componentDidUpdate() {
     let node = this.refs.timelinediv;
-    const {height, svgLayout, x, xAxis} = this.state;
+    const {height, lo, x, xAxis} = this.state;
     d3.select(node).select('svg>g.axis').call(xAxis);
     //d3.select(node).select('svg').call(tip);
   }
   render() {
-    const {eras, concept, personId} = this.props;
-    const {height, svgLayout, x, xAxis} = this.state;
-    if (!svgLayout) 
+    const {exposures, eras, concept, personId} = this.props;
+    const {height, lo, x, xAxis, lastday} = this.state;
+    if (!lo) 
       return (<div ref="timelinediv" className="timeline">
                 timeline not ready
               </div>);
 
     //return <pre>{JSON.stringify(eras, null, 2)}</pre>;
-    let bars = eras.map((era,i) => {
-      const tooltip = (
-        <Tooltip id="tooltip">
+    let exposureBars = exposures.map((exposure,i) => {
+      const exposurett = (
+        <Tooltip id="tooltip-exposure">
+          <pre>{JSON.stringify(exposure,null,2)}</pre>
+        </Tooltip>
+      );
+      return (
+              <OverlayTrigger 
+                  key={i}
+                  placement="bottom" overlay={exposurett}>
+                <rect  className="exposure"
+                    data-expnum={i}
+                    x={x(exposure.days_from_first)} 
+                    width={x(exposure.days_supply)}
+                    y={lo.zone('top') + lo.chartHeight() * .35}
+                    height={lo.chartHeight() * .3}
+                    />
+              </OverlayTrigger>);
+    });
+    let eraBars = eras.map((era,i) => {
+      const eratt = (
+        <Tooltip id="tooltip-era">
           Era {era.era_num} combines {era.exposures} exposures
           with {era.total_days_supply} total days supply
           over {era.era_days} days in era.
@@ -755,27 +828,74 @@ export class Timeline extends Component {
       );
           //<pre>{JSON.stringify(era,null,2)}</pre>
       return (
-              <OverlayTrigger placement="left" overlay={tooltip}>
+              <OverlayTrigger 
+                  key={i}
+                  placement="bottom" overlay={eratt}>
                 <rect  className="era"
-                    key={i}
                     data-eranum={i}
                     x={x(era.days_from_first_era)} 
                     width={x(era.era_days)}
-                    y={10}
-                    height={10}
+                    y={lo.zone('top')}
+                    height={lo.chartHeight()}
                     />
               </OverlayTrigger>);
     });
+    let exposuresDesc = 
+      <div>
+        <strong>{exposures.length} exposures:</strong> {' '}
+        {lastday} <span title="first day of exposure to last">days observation</span>, {' '}
+        {_.sum(exposures.map(d=>d.days_supply))} total days supply, {' '}
+        {_.sum( exposures
+                  .map(d => d.days_from_latest)
+                  .filter(d => d > 0)
+          )} gap days between exposures, {' '}
+        {_.sum( exposures
+                  .map(d => -d.days_from_latest)
+                  .filter(d => d > 0)
+          )} days of exposure overlap, {' '}
+        <span title="Medication Possession Ratio">MPR</span>: {' '}
+        { Math.round(
+            100 * _.sum(exposures.map(d=>d.days_supply)) / lastday)
+        }%. {' '}
+      </div>;
+    let erasDesc = '';
+    if (eras.length) {
+      erasDesc = 
+        <div>
+          <strong>{eras.length} eras:</strong> {' '}
+          {_.sum(eras.map(e=>e.era_days))} days in eras, {' '}
+          {_.sum(eras.map(e=>e.gap_days))} gap days between eras, {' '}
+          {_.sum( exposures
+                  .map(d => d.days_from_latest)
+                  .filter(d => d > 0)
+          ) - _.sum(eras.map(e=>e.gap_days))} gap days within exposures, {' '}
+          <span title="Medication Possession Ratio">MPR</span> {' '}
+          ignoring days between eras: {' '}
+          { Math.round(
+              100 * _.sum(exposures.map(d=>d.days_supply)) / 
+                    _.sum(eras.map(e=>e.era_days)))
+          }%. {' '}
+        </div>;
+    }
     return (<div ref="timelinediv" className="timeline">
-              <p>{eras.length} eras for person {personId}</p>
+              <div className="description">
+                Person {personId}: {' '}
+                {exposuresDesc}
+                {erasDesc}
+              </div>
               <svg 
-                    width={svgLayout.w()} 
-                    height={svgLayout.h()}>
+                    width={lo.w()} 
+                    height={lo.h()}>
                 <g className="axis"
                     transform={
-                      `translate(${svgLayout.zone('left')},${svgLayout.h() - svgLayout.zone('bottom')})`
+                      `translate(${lo.zone('left')},${lo.h() - lo.zone('bottom')})`
                     } />
-                {bars}
+                <g className="timeline"
+                    transform={
+                      `translate(${lo.zone('left')},${lo.zone('top')})`
+                    } />
+                {eraBars}
+                {exposureBars}
               </svg>
             </div>);
   }
