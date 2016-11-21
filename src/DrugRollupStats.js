@@ -469,12 +469,14 @@ export class DistSeriesContainer extends Component {
     this.fetchDists(conceptId, maxgap);
   }
   fetchDists(conceptId, maxgap) {
-    let maxgapdays = parseInt(maxgap, 10);
+    this.setState({dsgpDist: null});
     let params = {
             ntiles: this.state.ntiles,
             conceptid: conceptId,
-            maxgap: maxgapdays,
           };
+    if (typeof maxgap !== "undefined") {
+      params.maxgap = parseInt(maxgap, 10);
+    }
     util.cachedPostJsonFetch(
       'http://localhost:3000/api/daysupplies/dsgpPost',
       params)
@@ -525,13 +527,15 @@ export class DistSeriesContainer extends Component {
     */
   }
   render() {
-    const {concept, conceptId} = this.props;
+    const {concept, conceptId, maxgap} = this.props;
     const {dsgpDist, ntiles} = this.state;
     if (dsgpDist) {
       return <DistSeries  concept={concept}
                           conceptId={conceptId}
                           ntiles={ntiles}
                           dsgpDist={dsgpDist}
+                          maxgap={maxgap}
+                          loading={maxgap}
                           />
     } else {
       return <div className="waiting">Waiting for exposure data...</div>;
@@ -559,8 +563,15 @@ export class DistSeriesContainer extends Component {
  *  exposure count)
  */
 export class DistSeries extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { 
+      useFullHeight: false,
+    };
+  }
   render() {
-    const {dsgpDist, ntiles} = this.props;
+    const {dsgpDist, ntiles, maxgap} = this.props;
+    const {useFullHeight} = this.state;
     const maxBars = ntiles; // max in series (1st has max)
     let maxCnt = _.sum( dsgpDist
                   .filter(d=>d.exp_num === 1)
@@ -571,10 +582,15 @@ export class DistSeries extends Component {
       let ekey = `exp_${i}`;
       dists.push(<ExpGapDist
                     key={ekey}
+                    exp_num={i}
+                    type={typeof maxgap === "undefined"
+                            ? 'Exposure'
+                            : 'Era'}
                     distRecs={distRecs}
                     distBars={distRecs.length}
                     maxCnt={maxCnt}
                     maxBars={maxBars}
+                    useFullHeight={useFullHeight}
                     />);
       /*
       let gkey = `gap_${i}`;
@@ -595,7 +611,17 @@ export class DistSeries extends Component {
                     />);
       */
     }
-    return <div>{dists}</div>;
+    return  <div>
+              Gaps and exposure durations for up to {' '}
+              {dists.length} {' '}
+              {typeof maxgap === "undefined"
+                  ? 'raw exposures'
+                  : `eras based of max gap of ${maxgap}`}
+              <Checkbox onChange={()=>this.setState({useFullHeight:!this.state.useFullHeight})} inline={false}>
+                Use full height
+              </Checkbox>
+              {dists}
+            </div>;
   }
 }
 /* @class ExpGapDist
@@ -609,11 +635,12 @@ export class DistSeries extends Component {
 export class ExpGapDist extends Component {
   constructor(props) {
     super(props);
-    this.state = { };
+    this.state = { 
+    };
   }
   componentWillMount() {
     const {distRecs, distBars, maxBars, maxCnt} = this.props;
-    const top = 2, bottom = 20, left = 50, right = 2,
+    const top = 12, bottom = 17, left = 40, right = 10,
           gapChartWidth = 50, expChartWidth = 80,
           width = gapChartWidth + expChartWidth + left + right,
           height = distBars + top + bottom;
@@ -628,24 +655,42 @@ export class ExpGapDist extends Component {
     this.setState({ lo, gapChartWidth, expChartWidth, });
   }
   componentDidMount() {
-    const {distRecs, distBars, maxBars, maxCnt} = this.props;
-    const {lo, gapChartWidth, expChartWidth} = this.state;
+    let {expgapdistdiv} = this.refs;
+    this.setState({expgapdistdiv});
+  }
+  setYScale() {
+    const {distRecs, distBars, maxBars, maxCnt, exp_num, useFullHeight} = this.props;
+    const {lo, gapChartWidth, expChartWidth, expgapdistdiv} = this.state;
+
+
     const distCnt = _.sum(distRecs.map(d=>d.ds_count));
-    let y = d3.scaleLinear()
-              .range([0,lo.chartHeight() * distCnt / maxCnt])
-              .domain([0, distBars])
+    let yScaling = distCnt / maxCnt;
+    if (useFullHeight) {
+      yScaling = 1;
+    }
+    let yrange = [0,lo.chartHeight() * yScaling];
+
+    let ydomain = [0, distCnt];
+
+    let y = d3.scaleLinear().domain(ydomain).range(yrange);
     let yAxis = d3.axisLeft()
                 .scale(y)
-    let node = this.refs.expgapdistdiv;
-    d3.select(node).select('svg>g.y-axis').call(yAxis);
-    this.setState({ y, });
+                .ticks(3)
+    if (expgapdistdiv) {
+      d3.select(expgapdistdiv).select('svg>g.y-axis').call(yAxis);
+    }
+    ydomain = [0, distBars];
+    y.domain(ydomain);
+    return y;
   }
   render() {
-    const {distRecs, distBars, maxBars, maxCnt} = this.props;
-    const {lo, y, gapChartWidth, expChartWidth, } = this.state;
+    const {distRecs, distBars, maxBars, maxCnt, 
+            exp_num, type, useFullHeight} = this.props;
+    const {lo, gapChartWidth, expChartWidth, expgapdistdiv} = this.state;
 
     let expbars = '', gapbars = '';
-    if (y) {
+    let y = this.setYScale();
+    if (expgapdistdiv) {
       gapbars = <DistBars
                       distRecs={distRecs}
                       barLength={d=>d.gp_avg||0}
@@ -655,6 +700,7 @@ export class ExpGapDist extends Component {
                       maxBars={maxBars}
                       width={gapChartWidth}
                       y={y}
+                      exp_num={exp_num}
                     />;
       expbars = <DistBars
                       distRecs={distRecs}
@@ -665,9 +711,11 @@ export class ExpGapDist extends Component {
                       maxBars={maxBars}
                       width={expChartWidth}
                       y={y}
+                      exp_num={exp_num}
                     />;
     }
     return (<div ref="expgapdistdiv" className="expgapdist">
+              <div>
               <svg 
                     width={lo.w()} 
                     height={lo.h()}>
@@ -690,6 +738,11 @@ export class ExpGapDist extends Component {
                   {expbars}
                 </g>
               </svg>
+              <div>
+              {type} {exp_num}
+              {exp_num === 1 ? ` (no gap preceding first ${type.toLowerCase()})` : ''}
+              </div>
+              </div>
             </div>);
                 //<rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
                 //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
@@ -706,6 +759,7 @@ export class DistBars extends Component {
               .range([0, width])
               .domain([_.min([_.min(distRecs.map(barLength)), 0]), _.max(distRecs.map(barLength))]);
     let xAxis = d3.axisBottom()
+                .ticks(2)
                 .scale(x)
     this.setState({ x, });
     let node = this.refs.distbarsg;
@@ -714,12 +768,16 @@ export class DistBars extends Component {
   }
   render() {
     const {distRecs, distBars, maxBars, maxCnt, 
-            width, y, barLength} = this.props;
+            width, y, barLength, exp_num} = this.props;
     const {x, xAxis, } = this.state;
 
     let bars = '';
     if (x) {
       bars = distRecs.map((rec,i) => {
+        if (exp_num === 2 && i === 110) {
+          console.log(exp_num, barLength,
+                      i, y(i));
+        }
         return <line  key={i}
                       x1={x(0)} y1={y(i)} 
                       x2={x(barLength(rec))} y2={y(i)} 

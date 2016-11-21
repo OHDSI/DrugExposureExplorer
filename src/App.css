@@ -90,6 +90,7 @@ div.timeline .description span {
 	background-color: antiquewhite;
 	border-radius: 4px;
 	padding: 1px;
+	cursor: pointer;
 }
 .rollup-table {
   margin: 10px;
