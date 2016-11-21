@@ -65,9 +65,8 @@ div.timeline {
 .timeline svg {
 }
 rect.exposure {
-	fill: darkorange;
 	stroke: black;
-	opacity: .3;
+	opacity: .6;
 }
 rect.era {
 	fill: lightgray;

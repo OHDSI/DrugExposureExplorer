@@ -953,9 +953,17 @@ export class Timeline extends Component {
       })
     */
 
+    let drugList = _.chain(exposures)
+                      .map(d=>d.drug_name)
+                      .uniq()
+                      .sort()
+                      .value();
+    let drugColors = d3.scaleOrdinal()
+                        .range(d3.schemeCategory20)
+                        .domain(drugList);
     this.setState({
       height,
-      lo, x, xAxis, lastday
+      lo, x, xAxis, lastday, drugList, drugColors,
     });
   }
   componentDidUpdate() {
@@ -966,7 +974,7 @@ export class Timeline extends Component {
   }
   render() {
     const {exposures, eras, concept, personId} = this.props;
-    const {height, lo, x, xAxis, lastday} = this.state;
+    const {height, lo, x, xAxis, lastday, drugList, drugColors} = this.state;
     if (!lo) 
       return (<div ref="timelinediv" className="timeline">
                 timeline not ready
@@ -989,6 +997,7 @@ export class Timeline extends Component {
                     width={x(exposure.days_supply)}
                     y={lo.zone('top') + lo.chartHeight() * .35}
                     height={lo.chartHeight() * .3}
+                    fill={drugColors(exposure.drug_name)}
                     />
               </OverlayTrigger>);
     });
@@ -1014,6 +1023,13 @@ export class Timeline extends Component {
                     />
               </OverlayTrigger>);
     });
+    let drugLegend = drugList.map(drug=>{
+      return <Highlightable 
+                key={drug}
+                textContent={drug}
+                styles={{backgroundColor:drugColors(drug)}}
+              />;
+    });
     let exposuresDesc = 
       <div>
         <strong>{exposures.length} exposures:</strong> {' '}
@@ -1030,7 +1046,8 @@ export class Timeline extends Component {
         <span title="Medication Possession Ratio">MPR</span>: {' '}
         { Math.round(
             100 * _.sum(exposures.map(d=>d.days_supply)) / lastday)
-        }%. {' '}
+        }%. <br/>
+        Specific drugs: {drugLegend}
       </div>;
     let erasDesc = '';
     if (eras.length) {
@@ -1072,6 +1089,18 @@ export class Timeline extends Component {
                 {exposureBars}
               </svg>
             </div>);
+  }
+}
+export class Highlightable extends Component {
+  render() {
+    const {textContent, htmlContent,
+            styles, triggerFunc, payload,
+            listenFunc} = this.props;
+                //onMouseOver={()=>triggerFunc(payload)}
+    return <span style={styles}
+            >
+              {textContent}
+            </span>;
   }
 }
 /*

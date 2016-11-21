@@ -19,27 +19,33 @@ export function cachedJsonFetch(url, opts={}) {
 		//console.log(`using cache for ${url}. remove ${allowed} from ohdsi.util.ALLOW_CACHING to disable caching for it`);
 	} else {
 		//console.log(`not caching ${url}. add to ohdsi.util.ALLOW_CACHING to enable caching for it`);
-		return fetch(opts);
+		return jsonFetch(url, opts);
 	}
 	var key = `${url}:${JSON.stringify(opts)}`;
 	return new Promise(function(resolve, reject) {
 		if (!storageExists(key, cache)) {
-			fetch(url, opts)
-				.then(function(results) {
-					return results.json();
-				}).then(function(json) {
+			jsonFetch(url, opts)
+			.then(function(json) {
 					storagePut(key, json, cache);
+					//console.log('caching', key);
 					resolve(json);
 				});
 		} else {
 			var results = storageGet(key, cache);
+			//console.log('already cached', key, results);
 			resolve(results);
 		}
 	});
 }
+function jsonFetch(url, opts={}) {
+	return fetch(url, opts)
+		.then(function(results) {
+			return results.json();
+		});
+}
 export function cachedPostJsonFetch(url, params={}) {
-	var qs = _.map(params, (v,k) => `${v}=$k`).join('&');
-	console.log(`${url}?${qs}`);
+	var qs = _.map(params, (v,k) => `${k}=${v}`).join('&');
+	console.log(`${url.replace(/post/,'get').replace(/Post/,'Get')}?${qs}`);
 	return cachedJsonFetch(url, {
 						method: 'post',
 						headers: { 'Content-Type': 'application/json' },
