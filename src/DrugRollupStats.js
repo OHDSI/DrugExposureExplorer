@@ -431,7 +431,11 @@ export class ConceptDetail extends Component {
                   conceptId={conceptId} />
               <DistSeriesContainer 
                   concept={concept}
-                  conceptId={conceptId} />
+                  conceptId={conceptId} 
+                  maxgap={
+                    (noEras || (typeof maxgap === "undefined"))
+                    ? undefined : maxgap}
+              />
             </div>);
   }
 }
@@ -457,10 +461,19 @@ export class DistSeriesContainer extends Component {
     };
   }
   componentDidMount() {
-    const {conceptId} = this.props;
+    const {conceptId, maxgap} = this.props;
+    this.fetchDists(conceptId, maxgap);
+  }
+  componentWillReceiveProps(nextProps) {
+    const {conceptId, maxgap} = nextProps;
+    this.fetchDists(conceptId, maxgap);
+  }
+  fetchDists(conceptId, maxgap) {
+    let maxgapdays = parseInt(maxgap, 10);
     let params = {
             ntiles: this.state.ntiles,
             conceptid: conceptId,
+            maxgap: maxgapdays,
           };
     util.cachedPostJsonFetch(
       'http://localhost:3000/api/daysupplies/dsgpPost',
@@ -724,6 +737,7 @@ export class DistBars extends Component {
                 //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
   }
 }
+/*
 export class TimeDist extends Component {
   constructor(props) {
     super(props);
@@ -796,6 +810,7 @@ export class TimeDist extends Component {
             </div>);
   }
 }
+*/
 export class SampleTimelinesContainer extends Component {
   constructor(props) {
     super(props);
@@ -958,8 +973,14 @@ export class Timeline extends Component {
                       .uniq()
                       .sort()
                       .value();
+    const seeThroughColors = d3.schemeCategory20
+            .map(d => {
+              let c = d3.color(d);
+              c.opacity = 0.4;
+              return c;
+            });
     let drugColors = d3.scaleOrdinal()
-                        .range(d3.schemeCategory20)
+                        .range(seeThroughColors)
                         .domain(drugList);
     this.setState({
       height,
