@@ -435,12 +435,24 @@ export class ConceptDetail extends Component {
             </div>);
   }
 }
+/* @class DistSeriesContainer
+ *  data fetcher for DistSeries, a series of TimeDists
+ *  there may be more items in each distribution than
+ *  pixels of height to represent each with its own
+ *  line, so items are grouped into ntiles.
+ *
+ *  need to know the number of ntiles for data fetching,
+ *  but the number of ntiles needed is the pixel height
+ *  of chart area...so, kinda weird. would like to set
+ *  display param like height where the chart is 
+ *  defined, but can't -- chart height based on ntiles
+ *
+ */
 export class DistSeriesContainer extends Component {
   constructor(props) {
     super(props);
     this.state = { 
-      daysupply: null,
-      gaps: null,
+      dsgpDist: null,
       ntiles: 120,
     };
   }
@@ -449,8 +461,24 @@ export class DistSeriesContainer extends Component {
     let params = {
             ntiles: this.state.ntiles,
             conceptid: conceptId,
-            exp_or_gap: 'exp'
           };
+    util.cachedPostJsonFetch(
+      'http://localhost:3000/api/daysupplies/dsgpPost',
+      params)
+    .then(function(json) {
+      let recs = json.map( rec => {
+          rec.ds_count = parseInt(rec.ds_count, 10);
+          rec.gp_count = parseInt(rec.gp_count, 10);
+          rec.exp_num = parseInt(rec.exp_num, 10);
+          rec.gap_num = parseInt(rec.gap_num, 10);
+          rec.ds_avg = parseFloat(rec.ds_avg);
+          rec.gp_avg = parseFloat(rec.gp_avg);
+          return rec;
+        }
+      );
+      this.setState({dsgpDist: recs});
+    }.bind(this))
+    /*
     util.cachedPostJsonFetch(
       'http://localhost:3000/api/daysupplies/postCall',
       params)
@@ -481,57 +509,70 @@ export class DistSeriesContainer extends Component {
       var gaps = _.sortBy(recs, 'avg');
       this.setState({gaps});
     }.bind(this))
+    */
   }
   render() {
     const {concept, conceptId} = this.props;
-    const {daysupply, gaps, ntiles} = this.state;
-    if (daysupply && gaps) {
+    const {dsgpDist, ntiles} = this.state;
+    if (dsgpDist) {
       return <DistSeries  concept={concept}
                           conceptId={conceptId}
                           ntiles={ntiles}
-                          daysupply={daysupply}
-                          gaps={gaps} />
+                          dsgpDist={dsgpDist}
+                          />
     } else {
       return <div className="waiting">Waiting for exposure data...</div>;
     }
   }
 }
+/* @class DistSeries
+ *  a series of TimeDists. read description of container above
+ *
+ *  each line in a TimeDist represents an ntile of data items.
+ *  so far, just using ntile avg, but may later use
+ *  min and max.
+ *
+ *  not sure if this component will have more general use, but
+ *  writing it for showing days_supply and gap distributions
+ *  for 1st, 2nd, 3rd, etc exposures to a drug.
+ *
+ *  trying to aim at making component general, but for now
+ *  it's tied in various ways to specific use case 
+ *
+ *  1st exposure will always have the largest count, but
+ *  for data query simplicity, getting the same number of
+ *  ntiles for all exposures, so need to scale the others
+ *  appropriately to show the lower counts (maxCnt is 1st
+ *  exposure count)
+ */
 export class DistSeries extends Component {
   render() {
-    const {daysupply, gaps, ntiles} = this.props;
-    const timeDistWidth = 90;
-    const timeDistHeight = ntiles;
-    let maxn = _.sum( daysupply
-                  .filter(d=>d.exp_or_gap_num === 1)
-                  .map(d=>d.count));
+    const {dsgpDist, ntiles} = this.props;
+    const maxBars = ntiles; // max in series (1st has max)
+    let maxCnt = _.sum( dsgpDist
+                  .filter(d=>d.exp_num === 1)
+                  .map(d=>d.ds_count));
     let dists = [];
-    for (let i=1; i<_.max(daysupply.map(d=>d.exp_or_gap_num)); i++) {
+    for (let i=1; i<_.max(dsgpDist.map(d=>d.exp_num)); i++) {
+      const distRecs = dsgpDist.filter(d=>d.exp_num === i);
       let ekey = `exp_${i}`;
-      dists.push(<TimeDist
+      dists.push(<ExpGapDist
                     key={ekey}
-                    _key={ekey}
-                    numbers={ daysupply
-                        .filter(d=>d.exp_or_gap_num === i)
-                        .map(d=>d.avg)
-                    }
-                    maxn={maxn}
-                    n={_.sum( daysupply
-                        .filter(d=>d.exp_or_gap_num === i)
-                        .map(d=>d.count)
-                        )}
-                    width={timeDistWidth}
-                    height={timeDistHeight} 
+                    distRecs={distRecs}
+                    distBars={distRecs.length}
+                    maxCnt={maxCnt}
+                    maxBars={maxBars}
                     />);
+      /*
       let gkey = `gap_${i}`;
       dists.push(<TimeDist
                     key={gkey}
-                    _key={gkey}
                     numbers={
                       gaps
                         .filter(d=>d.exp_or_gap_num === i)
                         .map(d=>d.avg)
                     }
-                    maxn={maxn}
+                    maxCnt={maxCnt}
                     n={_.sum( gaps
                         .filter(d=>d.exp_or_gap_num === i)
                         .map(d=>d.count)
@@ -539,32 +580,218 @@ export class DistSeries extends Component {
                     width={timeDistWidth}
                     height={timeDistHeight} 
                     />);
+      */
     }
     return <div>{dists}</div>;
   }
 }
-export class TimeDist extends Component {
-  render() {
-    const {width, height, numbers, n, maxn, _key} = this.props;
-    let x = d3.scaleLinear()
-              .range([0,width])
-              .domain([_.min([_.min(numbers), 0]), _.max(numbers)]);
-    // shouldn't need a y scale, height === numbers.length
+/* @class ExpGapDist
+ *  TimeDist of gap days leading up to days_supply
+ *
+ *  not sure why counts of gaps and exps don't total
+ *  the same, so will probably have to fix this, but for
+ *  now treating them as if they do
+ *
+ */
+export class ExpGapDist extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { };
+  }
+  componentWillMount() {
+    const {distRecs, distBars, maxBars, maxCnt} = this.props;
+    const top = 2, bottom = 20, left = 50, right = 2,
+          gapChartWidth = 50, expChartWidth = 80,
+          width = gapChartWidth + expChartWidth + left + right,
+          height = distBars + top + bottom;
+          
+    let lo = new util.SvgLayout(
+          width, height,
+          { top: { margin: { size: top}, },
+            bottom: { margin: { size: bottom}, },
+            left: { margin: { size: left}, },
+            right: { margin: { size: right}, },
+          });
+    this.setState({ lo, gapChartWidth, expChartWidth, });
+  }
+  componentDidMount() {
+    const {distRecs, distBars, maxBars, maxCnt} = this.props;
+    const {lo, gapChartWidth, expChartWidth} = this.state;
+    const distCnt = _.sum(distRecs.map(d=>d.ds_count));
     let y = d3.scaleLinear()
-              .range([0,height * n / maxn])
-              .domain([0,height])
-    //console.log(_key, maxn, n, y.range()[1]);
+              .range([0,lo.chartHeight() * distCnt / maxCnt])
+              .domain([0, distBars])
+    let yAxis = d3.axisLeft()
+                .scale(y)
+    let node = this.refs.expgapdistdiv;
+    d3.select(node).select('svg>g.y-axis').call(yAxis);
+    this.setState({ y, });
+  }
+  render() {
+    const {distRecs, distBars, maxBars, maxCnt} = this.props;
+    const {lo, y, gapChartWidth, expChartWidth, } = this.state;
+
+    let expbars = '', gapbars = '';
+    if (y) {
+      gapbars = <DistBars
+                      distRecs={distRecs}
+                      barLength={d=>d.gp_avg||0}
+                      //barY={d=>d.gp_ntile} ? should it be this???
+                      barY={(d,i)=>i}
+                      maxCnt={maxCnt}
+                      maxBars={maxBars}
+                      width={gapChartWidth}
+                      y={y}
+                    />;
+      expbars = <DistBars
+                      distRecs={distRecs}
+                      barLength={d=>d.ds_avg||0}
+                      //barY={d=>d.gp_ntile} ? should it be this???
+                      barY={(d,i)=>i}
+                      maxCnt={maxCnt}
+                      maxBars={maxBars}
+                      width={expChartWidth}
+                      y={y}
+                    />;
+    }
+    return (<div ref="expgapdistdiv" className="expgapdist">
+              <svg 
+                    width={lo.w()} 
+                    height={lo.h()}>
+                <g className="y-axis"
+                    transform={
+                      `translate(${lo.zone('left')},${lo.zone('top')})`
+                    } />
+                <g className="gapdist"
+                    transform={
+                      `translate(${lo.zone('left')},${lo.zone('top')})`
+                    }>
+                  {gapbars}
+                    />
+                </g>
+                <g className="expdist"
+                    transform={
+                      `translate(${lo.zone('left') + expChartWidth},${lo.zone('top')})`
+                    }>
+
+                  {expbars}
+                </g>
+              </svg>
+            </div>);
+                //<rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
+                //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
+  }
+}
+export class DistBars extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { };
+  }
+  componentDidMount() {
+    const {distRecs, distBars, maxBars, maxCnt, width, barLength} = this.props;
+    let x = d3.scaleLinear()
+              .range([0, width])
+              .domain([_.min([_.min(distRecs.map(barLength)), 0]), _.max(distRecs.map(barLength))]);
+    let xAxis = d3.axisBottom()
+                .scale(x)
+    this.setState({ x, });
+    let node = this.refs.distbarsg;
+    d3.select(node).select('g.x-axis').call(xAxis);
+
+  }
+  render() {
+    const {distRecs, distBars, maxBars, maxCnt, 
+            width, y, barLength} = this.props;
+    const {x, xAxis, } = this.state;
+
+    let bars = '';
+    if (x) {
+      bars = distRecs.map((rec,i) => {
+        return <line  key={i}
+                      x1={x(0)} y1={y(i)} 
+                      x2={x(barLength(rec))} y2={y(i)} 
+                      className="bar" />;
+      });
+    }
+    return ( <g ref="distbarsg">
+                <g className="x-axis"
+                    transform={
+                      `translate(${0},${y.range()[1]})`
+                    } />
+                {bars}
+            </g>);
+                //<rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
+                //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
+  }
+}
+export class TimeDist extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { 
+    };
+  }
+  componentWillMount() {
+    const {width, height, numbers, n, maxCnt} = this.props;
+    const timeDistWidth = 300;
+    let lo = new util.SvgLayout(
+          width, height,
+          { top: { margin: { size: 2}, },
+            bottom: { margin: { size: 20}, },
+            left: { margin: { size: 55}, },
+            right: { margin: { size: 5}, },
+          });
+    let x = d3.scaleLinear()
+              .range([0, lo.chartWidth()])
+              .domain([_.min([_.min(numbers), 0]), _.max(numbers)]);
+    let xAxis = d3.axisBottom()
+                .scale(x)
+    let y = d3.scaleLinear()
+              .range([0,lo.chartHeight() * n / maxCnt])
+              .domain([0, maxCnt])
+    let yAxis = d3.axisLeft()
+                .scale(y)
+
+    this.setState({
+      lo, x, xAxis, y, yAxis
+    });
+  }
+  componentDidMount() {
+    const {lo, x, xAxis, y, yAxis} = this.state;
+    let node = this.refs.timedistdiv;
+    d3.select(node).select('svg>g.x-axis').call(xAxis);
+    d3.select(node).select('svg>g.y-axis').call(yAxis);
+
+  }
+  render() {
+    const {numbers, n, maxCnt} = this.props;
+    const {lo, x, xAxis, y, yAxis} = this.state;
+    //if (!lo) return <div>just a second...</div>;
     let bars = numbers.map((num,i) => {
       return <line  key={i}
                     x1={x(0)} y1={y(1 + i)} 
                     x2={x(num)} y2={y(1 + i)} 
                     className="bar" />;
     });
-    return (<div className="timedist">
-              <svg width={width+2} height={height+2}>
-                <rect x={1} y={1} width={width} height={height} />
-                <line x1={x(0)} y1={0} x2={x(0)} y2={height} className="zero"/>
-                {bars}
+    return (<div ref="timedistdiv" className="timedist">
+              <svg 
+                    width={lo.w()} 
+                    height={lo.h()}>
+                <g className="x-axis"
+                    transform={
+                      `translate(${lo.zone('left')},${lo.h() - lo.zone('bottom')})`
+                    } />
+                <g className="y-axis"
+                    transform={
+                      `translate(${lo.zone('left')},${lo.zone('top')})`
+                    } />
+                <rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
+                <line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
+                <g className="timedist"
+                    transform={
+                      `translate(${lo.zone('left')},${lo.zone('top')})`
+                    }>
+                </g>
+                  {bars}
               </svg>
             </div>);
   }
