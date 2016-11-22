@@ -16,6 +16,11 @@ Need to write this
 
 Need help with this
 
+ - thinking about washout periods, set era maxgap to washout period
+   and see how many eras people have. For instance, in synpuf5%,
+   half of patients with ANTIHYPERTENSIVES exposure go on to have
+   another exposure after 180-day gap. does that mean anything?
+
 ## Installation
 
 Need to write this
@@ -37,9 +42,19 @@ Need to write this
   - fix y axis
   - make height consistent
   - fix choppy gap distributions (or are those meaningful?)
+- more distribution charts for overall drug characteristics:
+  - single exposure days
+  - single gap days (with overlap)
+  - total exposure days
+  - total gap days (with overlap)
+  - gap days between exposures
+  - gap days between eras
 - connect to other data
   - overall patient timelines for individual patients
   - conditions, concomitant medications, measurements, demographics, etc.
+- data composition
+  - get help validating
+  - what to do with not enough recs for ntiles?
 
 
 
