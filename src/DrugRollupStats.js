@@ -8,9 +8,7 @@ var d3 = require('d3');
 //var d3tip = require('d3-tip');
 if (DEBUG) window.d3 = d3;
 import * as util from './utils';
-var FixedDataTable = require('fixed-data-table');
-const {Table, Column, Cell} = FixedDataTable;
-
+import DataTable from './components/FixedDataTableSortFilt';
 import {SparkBarsChart} from './components/SparkBars';
 
 var commify = d3.format(',');
@@ -108,102 +106,26 @@ export class RollupList extends Component {
     }
   }
 }
-class DumbStore {
-  constructor(arr){
-    this.arr = arr;
-    this.size = arr.length;
-    this._cache = [];
-  }
 
-  getObjectAt(/*number*/ index) /*?object*/ {
-    if (index < 0 || index > this.size){
-      return undefined;
-    }
-    if (this._cache[index] === undefined) {
-      this._cache[index] = this.arr[index];
-    }
-    return this._cache[index];
-  }
-
-  /**
-  * Populates the entire cache with data.
-  * Use with Caution! Behaves slowly for large sizes
-  * ex. 100,000 rows
-  */
-  getAll() {
-    if (this._cache.length < this.size) {
-      for (var i = 0; i < this.size; i++) {
-        this.getObjectAt(i);
-      }
-    }
-    return this._cache.slice();
-  }
-
-  getSize() {
-    return this.size;
-  }
-}
-class DataListWrapper {
-  constructor(indexMap, data) {
-    this._indexMap = indexMap;
-    this._data = data;
-  }
-
-  getSize() {
-    return this._indexMap.length;
-  }
-
-  getObjectAt(index) {
-    return this._data.getObjectAt(
-      this._indexMap[index],
-    );
-  }
-}
 
 export class RollupTable extends Component {
   constructor(props) {
     super(props);
-
-    this._dataList = new DumbStore(props.rollup.children);
+    //this.dataList = props.rollup.children;
+    //this._dataList = new DumbStore(props.rollup.children);
     this.state = {
-      filteredDataList: this._dataList,
       open: true,
       showModal: false,
       concept: null,
-      bodyWidth: null, bodyHeight: null,
       noEras: false,
       maxgap: 30,
     };
-
-    this._onFilterChange = this._onFilterChange.bind(this);
   }
   closeModal() {
     this.setState({ showModal: false });
   }
   openModal() {
     this.setState({ showModal: true });
-  }
-
-  _onFilterChange(e) {
-    if (!e.target.value) {
-      this.setState({
-        filteredDataList: this._dataList,
-      });
-    }
-
-    var filterBy = e.target.value.toLowerCase();
-    var size = this._dataList.getSize();;
-    var filteredIndexes = [];
-    for (var index = 0; index < size; index++) {
-      var conceptName = this._dataList.getObjectAt(index).toString();
-      if (conceptName.toLowerCase().indexOf(filterBy) !== -1) {
-        filteredIndexes.push(index);
-      }
-    }
-
-    this.setState({
-      filteredDataList: new DataListWrapper(filteredIndexes, this._dataList),
-    });
   }
 
   getConceptDetail() {
@@ -221,9 +143,49 @@ export class RollupTable extends Component {
   }
   render() {
     var {rollup} = this.props;
-    var {filteredDataList, concept, noEras, maxgap} = this.state;
+    var {concept, noEras, maxgap} = this.state;
     let conceptSummary = '';
     let conceptDetail = '';
+    const coldefs = [
+      {
+        title: 'Concept (drug or class)',
+        name: 'Concept',
+        accessor: d => d.toString(),
+        colProps: {fixed:true, width:100,flexGrow:1},
+        searchable: true, sortable: true,
+        defaultSortDir: 'DESC',
+      },
+      {
+        title: 'Patients',
+        accessor: d => d.aggregate(_.sum,'personCount'),
+        fmtAccessor: function(d) {
+          return commify(this.accessor(d));
+        },
+        colProps: {fixed:true, width:90,align:'right'},
+        sortable: true,
+      },
+      {
+        title: 'Avg exposures/person',
+        accessor: d=> Math.round(
+                        d.aggregate(_.sum,'expCount') /
+                        d.aggregate(_.sum,'personCount')
+                        * 100) / 100,
+        colProps: {fixed:true, width:190,align:'right'},
+        sortable: true,
+      },
+      {
+        title: '',
+        accessor: () => '',
+        colProps: {fixed:true, width:20}, // right edge looks weird otherwise
+              // surely must be a better way to fix
+      },
+    ];
+    const tableProps = {
+      rowHeight: 25,
+      headerHeight: 55,
+      width: 1000,
+      height: 200,
+    };
     return (
       <div className="rollup-table">
         <Button onClick={ ()=> this.setState({ open: !this.state.open })}>
@@ -262,64 +224,22 @@ export class RollupTable extends Component {
           </Modal.Footer>
         </Modal>
         <Panel collapsible expanded={this.state.open}>
-          <input
-            onChange={this._onFilterChange}
-            placeholder="Filter by Concept"
-          />
           <br />
-          <Table
-            rowHeight={25}
-            rowsCount={filteredDataList.getSize()}
-            headerHeight={55}
-            width={1000}
-            height={200}
-            onRowClick={
-              (evt, idx, obj)=>{
-                let concept = filteredDataList.getObjectAt(idx);
-                this.openModal();
-                this.setState({concept});
-              }
-            }
-            {...this.props}>
-            <Column
-              header={<Cell>Concept (drug or class)</Cell>}
-              cell={<StringCell data={filteredDataList}/>}
-              fixed={true}
-              width={100}
-              flexGrow={1}
-            />
-            <Column
-              header={<Cell>Patients</Cell>}
-              cell={<SGCell 
-                      func={d=>
-                        commify(d.aggregate(_.sum,'personCount'))}
-                      data={filteredDataList}/>}
-              fixed={true}
-              width={90}
-              align="right"
-            />
-            <Column
-              header={<Cell>Avg Exposures/Person</Cell>}
-              cell={<SGCell 
-                      func={
-                        d=> 
-                            Math.round(
-                            d.aggregate(_.sum,'expCount') /
-                            d.aggregate(_.sum,'personCount')
-                            * 100) / 100
-                      }
-                      data={filteredDataList}/>}
-              fixed={true}
-              width={190}
-              align="right"
-            />
-            <Column
-              header={<Cell></Cell>}
-              cell={<Cell></Cell>} 
-              fixed={true}
-              width={20}
-            />
-          </Table>
+          <DataTable  _key={rollup.toString()}
+                      data={rollup.children}
+                      coldefs={coldefs}
+                      tableProps={tableProps}
+                      tableHeadFunc={
+                        (datalist) => {
+                          return <span>{datalist.getSize()} rows</span>;
+                      }}
+                      _onRowClick={
+                        (evt, idx, obj, datalist)=>{
+                          let concept = datalist.getObjectAt(idx);
+                          this.openModal(); //THIS!!!! fix
+                          this.setState({concept});
+                        }}
+          />
         </Panel>
       </div>
     );
@@ -335,22 +255,6 @@ export class RollupTable extends Component {
   }
   */
 }
-
-const StringCell = ({rowIndex, data, col, ...props}) => (
-  <Cell {...props}>
-    {data.getObjectAt(rowIndex).toString()}
-  </Cell>
-);
-const SGCell = ({func, rowIndex, data, col, ...props}) => (
-  <Cell {...props}>
-    {func(data.getObjectAt(rowIndex))}
-  </Cell>
-);
-const TextCell = ({rowIndex, data, col, ...props}) => (
-  <Cell {...props}>
-    {data.getObjectAt(rowIndex)[col]}
-  </Cell>
-);
 
 export class DrugList extends Component {
   constructor(props) {
