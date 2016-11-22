@@ -31,7 +31,10 @@ Need to write this
 - load more patients
   - provide means to select patients by useful attributes
   - put patients in datatable, improve formatting
+  - show collapsed view of patient with just timeline
 - distributions
+  - cumulative distribution function
+  - add KDE, maybe do brushing on the KDE
   - Carsten's idea: break up gaps by exposure duration blocks
   - full height on hover
   - legend text for charts
@@ -39,6 +42,9 @@ Need to write this
     - tooltip for all recs with same duration
     - filter gaps (and maybe all other distributions
       to records tied to hover region
+  - gap duration
+    - brush gap region to select subsets of patients
+      and show sample patients accordingly
   - fix y axis
   - make height consistent
   - fix choppy gap distributions (or are those meaningful?)
