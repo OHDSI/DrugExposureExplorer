@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import _ from 'lodash';
+var d3 = require('d3');
 var FixedDataTable = require('fixed-data-table');
 const {Table, Column, Cell} = FixedDataTable;
 
@@ -12,16 +13,43 @@ const AccCell = ({rowIndex, data, col, cellProps, ...props}) => (
     }
   </Cell>
 );
+function sortByAndReturnSomething(baseList, sortBy, direction, something) {
+  let list;
+  if (something === 'list') { // something == 'list' or 'indexes'
+    list = _.sortBy(baseList, sortBy);
+    if (direction === 'DESC') {
+      return list;
+    }
+    return list.reverse();
+  }
+  list = _.chain(baseList)
+                .map((d,i) => [sortBy(d), i])
+                .sortBy(d=>d[0])
+                .value();
+  if (direction === 'DESC') {
+    return list.map(d=>d[1]);
+  }
+  return list.reverse().map(d=>d[1]);
+}
 export default class FixedDataTableSortFilt extends Component {
   constructor(props) {
     super(props);
     const {data, coldefs, tableProps} = this.props;
-    this._dataList = new DumbStore(data);
-    this._defaultSortIndexes = [];
-    var size = this._dataList.getSize();
-    for (var index = 0; index < size; index++) {
-      this._defaultSortIndexes.push(index);
-    }
+    let colSortDirs = _.chain(coldefs)
+                        .map((d,i)=>[this.colKey(d,i),d.defaultSortDir])
+                        .filter(d=>d[1])
+                        .fromPairs()
+                        .value();
+    let sortCol = _.first(coldefs, d=>d.defaultSortDir);
+    let sortDir = sortCol.defaultSortDir;
+    this._dataList = new DumbStore(
+      sortByAndReturnSomething(data, sortCol.accessor, sortDir, 'list')
+    );
+    this._defaultSortIndexes = _.range(data.length);
+
+    let filteredDataList = new DataListWrapper(this._defaultSortIndexes, this._dataList);
+    let sortedDataList = new DataListWrapper(this._defaultSortIndexes, this._dataList);
+
     const searchColIdxs = 
       coldefs
         .map((d,i) => [d,i])
@@ -35,14 +63,9 @@ export default class FixedDataTableSortFilt extends Component {
                     .indexOf(searchText) !== -1
         ));
 
-    var colSortDirs = _.chain(coldefs)
-                        .map((d,i)=>[this.colKey(d,i),d.defaultSortDir])
-                        .filter(d=>d[1])
-                        .fromPairs()
-                        .value();
     this.state = {
-      filteredDataList: this._dataList,
-      sortedDataList: this._dataList,
+      filteredDataList,
+      sortedDataList,
       colSortDirs,
       filterFunc,
       searchColIdxs,
@@ -126,24 +149,7 @@ export default class FixedDataTableSortFilt extends Component {
   }
 
   _onSortChange(coldef, columnKey, sortDir) {
-    var sortIndexes = this._defaultSortIndexes.slice();
-    sortIndexes.sort((indexA, indexB) => {
-      var valueA = coldef.accessor(this._dataList.getObjectAt(indexA));
-      var valueB = coldef.accessor(this._dataList.getObjectAt(indexB));
-      var sortVal = 0;
-      if (valueA > valueB) {
-        sortVal = 1;
-      }
-      if (valueA < valueB) {
-        sortVal = -1;
-      }
-      if (sortVal !== 0 && sortDir === SortTypes.ASC) {
-        sortVal = sortVal * -1;
-      }
-
-      return sortVal;
-    });
-
+    var sortIndexes = sortByAndReturnSomething(this._dataList.arr, coldef.accessor, sortDir, 'indexes');
     this.setState({
       sortedDataList: new DataListWrapper(sortIndexes, this._dataList),
       colSortDirs: {
@@ -209,6 +215,9 @@ class DumbStore {
     this._cache = [];
   }
 
+  permute(indexes) {
+    this.arr = d3.permute(this.arr, indexes);
+  }
   getObjectAt(/*number*/ index) /*?object*/ {
     if (index < 0 || index > this.size){
       return undefined;
