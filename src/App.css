@@ -86,7 +86,7 @@ rect.era {
   stroke: salmon;
   stroke-width: 1;
 }
-div.timeline .description span {
+.description {
 	background-color: antiquewhite;
 	border-radius: 4px;
 	padding: 1px;
@@ -107,4 +107,16 @@ div.timeline .description span {
 .axis .minor line {
   stroke: #777;
   stroke-dasharray: 2,2;
+}
+.axis path,
+.axis line {
+	fill: none;
+	stroke: #000;
+	shape-rendering: crispEdges;
+}
+
+.line {
+	fill: none;
+	stroke: steelblue;
+	stroke-width: 1.5px;
 }

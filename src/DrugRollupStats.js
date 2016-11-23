@@ -16,7 +16,8 @@ Copyright 2016 Sigfried Gold
 const DEBUG = true;
 import React, { Component } from 'react';
 import { Button, Panel, Modal, Checkbox, 
-          OverlayTrigger, Tooltip } from 'react-bootstrap';
+          OverlayTrigger, Tooltip,
+          FormGroup, Radio } from 'react-bootstrap';
 
 import _ from 'supergroup';
 var d3 = require('d3');
@@ -486,11 +487,15 @@ export class DistSeries extends Component {
     super(props);
     this.state = { 
       useFullHeight: false,
+      DistChartType: 'DistBars',
+      ChartTypes : {
+        DistBars, CumulativeDistFunc,
+      }
     };
   }
   render() {
     const {dsgpDist, ntiles, maxgap} = this.props;
-    const {useFullHeight} = this.state;
+    const {useFullHeight, DistChartType, ChartTypes} = this.state;
     const maxBars = ntiles; // max in series (1st has max)
     let maxCnt = _.sum( dsgpDist
                   .filter(d=>d.exp_num === 1)
@@ -506,10 +511,10 @@ export class DistSeries extends Component {
                             ? 'Exposure'
                             : 'Era'}
                     distRecs={distRecs}
-                    distBars={distRecs.length}
                     maxCnt={maxCnt}
                     maxBars={maxBars}
                     useFullHeight={useFullHeight}
+                    DistChart={ChartTypes[DistChartType]}
                     />);
       /*
       let gkey = `gap_${i}`;
@@ -536,11 +541,44 @@ export class DistSeries extends Component {
               {typeof maxgap === "undefined"
                   ? 'raw exposures'
                   : `eras based of max gap of ${maxgap}`}
-              <Checkbox onChange={()=>this.setState({useFullHeight:!this.state.useFullHeight})} inline={false}>
+              <Checkbox onChange={
+                          ()=>this.setState({useFullHeight:!this.state.useFullHeight})
+                        } inline={false}>
                 Use full height
               </Checkbox>
+                <Radio inline 
+                  checked={DistChartType==='DistBars'}
+                  value={'DistBars'}
+                  onChange={this.onDistChartChange.bind(this)}
+                >
+                  Distribution bars (kinda weird, but I like it)
+                </Radio>
+                {' '}
+                <Radio inline
+                  checked={DistChartType==='CumulativeDistFunc'}
+                  value={'CumulativeDistFunc'}
+                  onChange={this.onDistChartChange.bind(this)}
+                >
+                  Cumulative Distribution Function
+                </Radio>
+                {' '}
+                <Radio inline
+                  title="blah blah blah"
+                  disabled={true}
+                  checked={DistChartType==='DensityEstimation'}
+                  //checked={true}
+                  value={'DensityEstimation'}
+                  onChange={this.onDistChartChange.bind(this)}
+                >
+                  Density Estimation
+                </Radio>
               {dists}
             </div>;
+  }
+  onDistChartChange(e) {
+    this.setState({
+      DistChartType: e.currentTarget.value,
+    });
   }
 }
 /* @class ExpGapDist
@@ -558,11 +596,11 @@ export class ExpGapDist extends Component {
     };
   }
   componentWillMount() {
-    const {distRecs, distBars, maxBars, maxCnt} = this.props;
+    const {distRecs, maxBars, maxCnt} = this.props;
     const top = 12, bottom = 17, left = 40, right = 10,
           gapChartWidth = 50, expChartWidth = 80,
           width = gapChartWidth + expChartWidth + left + right,
-          height = distBars + top + bottom;
+          height = distRecs.length + top + bottom;
           
     let lo = new util.SvgLayout(
           width, height,
@@ -578,7 +616,7 @@ export class ExpGapDist extends Component {
     this.setState({expgapdistdiv});
   }
   setYScale() {
-    const {distRecs, distBars, maxBars, maxCnt, exp_num, useFullHeight} = this.props;
+    const {distRecs, maxBars, maxCnt, exp_num, useFullHeight, DistChart} = this.props;
     const {lo, gapChartWidth, expChartWidth, expgapdistdiv} = this.state;
 
 
@@ -587,7 +625,7 @@ export class ExpGapDist extends Component {
     if (useFullHeight) {
       yScaling = 1;
     }
-    let yrange = [0,lo.chartHeight() * yScaling];
+    let yrange = [lo.chartHeight() * yScaling, 0];
 
     let ydomain = [0, distCnt];
 
@@ -598,21 +636,21 @@ export class ExpGapDist extends Component {
     if (expgapdistdiv) {
       d3.select(expgapdistdiv).select('svg>g.y-axis').call(yAxis);
     }
-    ydomain = [0, distBars];
+    ydomain = [0, distRecs.length];
     y.domain(ydomain);
     return y;
   }
   render() {
-    const {distRecs, distBars, maxBars, maxCnt, 
-            exp_num, type, useFullHeight} = this.props;
+    const {distRecs, maxBars, maxCnt, 
+            exp_num, type, useFullHeight, DistChart} = this.props;
     const {lo, gapChartWidth, expChartWidth, expgapdistdiv} = this.state;
 
     let expbars = '', gapbars = '';
     let y = this.setYScale();
     if (expgapdistdiv) {
-      gapbars = <DistBars
+      gapbars = <DistChart
                       distRecs={distRecs}
-                      barLength={d=>d.gp_avg||0}
+                      getX={d=>d.gp_avg||0}
                       //barY={d=>d.gp_ntile} ? should it be this???
                       barY={(d,i)=>i}
                       maxCnt={maxCnt}
@@ -621,9 +659,9 @@ export class ExpGapDist extends Component {
                       y={y}
                       exp_num={exp_num}
                     />;
-      expbars = <DistBars
+      expbars = <DistChart
                       distRecs={distRecs}
-                      barLength={d=>d.ds_avg||0}
+                      getX={d=>d.ds_avg||0}
                       //barY={d=>d.gp_ntile} ? should it be this???
                       barY={(d,i)=>i}
                       maxCnt={maxCnt}
@@ -667,16 +705,84 @@ export class ExpGapDist extends Component {
                 //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
   }
 }
+export class CumulativeDistFunc extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { };
+  }
+  componentDidMount() {
+    const {distRecs, maxBars, maxCnt, width, getX, y} = this.props;
+    let x = d3.scaleLinear()
+              .range([0, width])
+              .domain([_.min([_.min(distRecs.map(getX)), 0]), _.max(distRecs.map(getX))]);
+    let xAxis = d3.axisBottom()
+                .ticks(2)
+                .scale(x)
+    this.setState({ x, });
+    let node = this.refs.distbarsg;
+    d3.select(node).select('g.x-axis').call(xAxis);
+
+
+    const cnt = distRecs.length;
+    let data = distRecs.map((d,i) => {
+      return {
+        x: getX(d) * -1,
+        //y: (i+1) / cnt,
+        y: -i,
+      };
+    });
+    /*
+     * getting code from http://bl.ocks.org/jdittmar/6282869
+    var dataLength = data.length;
+    for (var i = 0; i < dataLength; i++) {
+      data[i].x =  +data[i].x*-1;
+      data[i].y = +((i+1)/dataLength);
+      dataLookup[data[i].orf]=data[i].x;
+    };
+    */
+    x.domain(d3.extent(data, function(d) { return d.x; })).nice();
+    y.domain(d3.extent(data, function(d) { return d.y; })).nice();
+
+    var line = d3.line()
+        .x(function(d) { return x(d.x); })
+        .y(function(d) { return y(d.y); });
+    let color = d3.scaleOrdinal()
+                        .range(d3.schemeCategory10);
+
+    d3.select(node).append("path")
+        .datum(data)
+        .attr("class", "line")
+        .attr("d", line)
+        .style("stroke", function(d) { 
+          return color("initial"); 
+        });
+  }
+  render() {
+    const {distRecs, maxBars, maxCnt, 
+            width, y, getX, exp_num} = this.props;
+    const {x, xAxis, } = this.state;
+
+
+    return ( <g ref="distbarsg">
+                <g className="x-axis"
+                    transform={
+                      `translate(${0},${y.range()[0]})`
+                    } />
+            </g>);
+                //<rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
+                //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
+  }
+}
 export class DistBars extends Component {
   constructor(props) {
     super(props);
     this.state = { };
   }
   componentDidMount() {
-    const {distRecs, distBars, maxBars, maxCnt, width, barLength} = this.props;
+    const {distRecs, maxBars, maxCnt, width, getX} = this.props;
     let x = d3.scaleLinear()
               .range([0, width])
-              .domain([_.min([_.min(distRecs.map(barLength)), 0]), _.max(distRecs.map(barLength))]);
+              .domain([_.min([_.min(distRecs.map(getX)), 0]), _.max(distRecs.map(getX))]);
     let xAxis = d3.axisBottom()
                 .ticks(2)
                 .scale(x)
@@ -686,27 +792,27 @@ export class DistBars extends Component {
 
   }
   render() {
-    const {distRecs, distBars, maxBars, maxCnt, 
-            width, y, barLength, exp_num} = this.props;
+    const {distRecs, maxBars, maxCnt, 
+            width, y, getX, exp_num} = this.props;
     const {x, xAxis, } = this.state;
 
     let bars = '';
     if (x) {
       bars = distRecs.map((rec,i) => {
         if (exp_num === 2 && i === 110) {
-          console.log(exp_num, barLength,
+          console.log(exp_num, getX,
                       i, y(i));
         }
         return <line  key={i}
                       x1={x(0)} y1={y(i)} 
-                      x2={x(barLength(rec))} y2={y(i)} 
+                      x2={x(getX(rec))} y2={y(i)} 
                       className="bar" />;
       });
     }
     return ( <g ref="distbarsg">
                 <g className="x-axis"
                     transform={
-                      `translate(${0},${y.range()[1]})`
+                      `translate(${0},${y.range()[0]})`
                     } />
                 {bars}
             </g>);
