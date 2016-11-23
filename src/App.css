@@ -86,7 +86,7 @@ rect.era {
   stroke: salmon;
   stroke-width: 1;
 }
-.description {
+div.timeline .description span {
 	background-color: antiquewhite;
 	border-radius: 4px;
 	padding: 1px;
