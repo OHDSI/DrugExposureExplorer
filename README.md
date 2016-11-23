@@ -10,16 +10,22 @@
 
 ## Description
 
-Need to write this
+Need to write this. Hope to have a demo up soon.
 
 ### Use cases ###
 
 Need help with this
 
- - thinking about washout periods, set era maxgap to washout period
-   and see how many eras people have. For instance, in synpuf5%,
+ - in cohort definition we might say we want all exposures to x
+   with a 180-day washout period or, alternatively, all first exposures
+   to x with a 180-day washout period. but we seldom have a clear
+   sense of how different those two cohorts will be. here we can
+   see, for instance, by setting era maxgap to 180, in synpuf5%,
    half of patients with ANTIHYPERTENSIVES exposure go on to have
-   another exposure after 180-day gap. does that mean anything?
+   another exposure after a 180-day gap and we can see the distribution
+   of the actual gaps before the next exposure, and can play with
+   different washout periods (well, I'm not including obs period yet),
+   to (very quickly) see how it affects cohort selection
 
 ## Installation
 
@@ -66,4 +72,35 @@ Need to write this
 
 ## Acknowledgements
 
-(need permission to acknowledge)
+This work is funded by [The University of Colorado](http://www.ucdenver.edu), 
+[Health Data Compass](http://www.ucdenver.edu/about/departments/healthdatacompass)
+under the direction of [Michael Kahn](https://profiles.ucdenver.edu/display/225446),
+technical guidance and support from Michael Ames and Hajar Homayouni,
+with subject matter expertise and guidance from Marsha Raebel, Christina Aquilante,
+and Katy Trinkley.
+
+It is being designed and implemented by [Sigfried Gold](http://sigfried.org) for 
+the benefit of Health Data Compass and the [OHDSI](http://ohdsi.org) community.
+
+I'd like to express my great gratitude to Michael Kahn for giving me the chance to
+work on this project and the creative freedom to experiment and build what
+we hope will be genuinely innovative and useful tools for health data research.
+
+Contact me (sigfried at sigfried dot org) with any technical questions.
+
+
+
+Copyright 2016 Sigfried Gold
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
