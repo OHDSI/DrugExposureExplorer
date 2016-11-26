@@ -46,11 +46,6 @@
   stroke-width: 1.5px;
 }
 
-div.timedist, div.expgapdist {
-  float: left;
-  margin: 5px;
-	border: 1px solid lightgray;
-}
 div.timelines {
   margin: 5px;
 }
@@ -78,7 +73,7 @@ rect.era {
 .timedist line.zero {
   stroke: red;
 }
-.expdist line.bar {
+.distbars line.bar {
   stroke: skyblue;
   stroke-width: 1;
 }

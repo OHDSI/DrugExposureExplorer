@@ -20,3 +20,15 @@
   display: none;
 }
 
+/*
+svg {
+	border: 4px solid green;
+}
+*/
+
+div.timedist, div.expgapdist {
+  float: left;
+	clear: right;
+  margin: 5px;
+	border: 1px solid lightgray;
+}

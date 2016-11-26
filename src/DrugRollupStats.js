@@ -27,6 +27,7 @@ import * as util from './utils';
 import DataTable from './components/FixedDataTableSortFilt';
 import {DistSeriesContainer} from './components/DistCharts';
 import {SparkBarsChart} from './components/SparkBars';
+import {ExposureExplorer} from './components/ExposureExplorer';
 
 var commify = d3.format(',');
 export class RollupListContainer extends Component {
@@ -95,32 +96,16 @@ export class RollupListContainer extends Component {
 export class RollupList extends Component {
   constructor(props) {
     super(props);
-    this.state = { rollup: null };
   }
   render() {
     const {rollups} = this.props;
-    const {rollup} = this.state;
-    if (!rollup) { // show all rollups
-      /*  opens DrugList -- not used at the moment
-                <a href="#" style={{cursor:'pointer'}} 
-                    onClick={()=>this.setState({rollup})}>{rollup.toString()}</a>
-      */
-      return (
-        <div className="drugrollup">
-            {rollups.map(rollup =>
-                <RollupTable key={rollup.toString()} rollup={rollup} />
-              )}
-        </div>
-      );
-    } else { // already picked a rollup
-      return (
-        <div>
-          {rollup.toString()}
-          <button onClick={()=>this.setState({rollup:null })}>Clear rollup selection</button>
-          <DrugList rollup={rollup} />
-        </div>
-      );
-    }
+    return (
+      <div className="drugrollup">
+          {rollups.map(rollup =>
+              <RollupTable key={rollup.toString()} rollup={rollup} />
+            )}
+      </div>
+    );
   }
 }
 
@@ -128,41 +113,29 @@ export class RollupList extends Component {
 export class RollupTable extends Component {
   constructor(props) {
     super(props);
-    //this.dataList = props.rollup.children;
-    //this._dataList = new DumbStore(props.rollup.children);
     this.state = {
       open: true,
-      showModal: false,
-      concept: null,
-      noEras: false,
-      maxgap: 30,
     };
   }
-  closeModal() {
-    this.setState({ showModal: false });
-  }
-  openModal() {
-    this.setState({ showModal: true });
-  }
-
-  getConceptDetail() {
+  /*
+  getExposureExplorer() {
     const {concept, modalWidth, noEras, maxgap} = this.state;
     if (concept && modalWidth) {
-      let conceptId = concept.records[0].rollupConceptId;
-      return <ConceptDetail 
+      let concept_id = concept.records[0].rollupConceptId;
+      return <ExposureExplorer 
                 width={modalWidth}
                 noEras={noEras}
                 maxgap={maxgap}
                 concept={concept} 
-                conceptId={conceptId}/>;
+                concept_id={concept_id}/>;
     }
     return <h3>no concept detail</h3>;
   }
+  */
   render() {
     var {rollup} = this.props;
-    var {concept, noEras, maxgap} = this.state;
+    var {concept, concept_id} = this.state;
     let conceptSummary = '';
-    let conceptDetail = '';
     const coldefs = [
       {
         title: 'Concept (drug or class)',
@@ -206,40 +179,8 @@ export class RollupTable extends Component {
     return (
       <div className="rollup-table">
         <Button onClick={ ()=> this.setState({ open: !this.state.open })}>
-        {rollup.toString()}
+          {rollup.toString()}
         </Button>
-        <Modal bsSize="lg"
-            show={this.state.showModal} 
-            onHide={this.closeModal.bind(this)}
-            onEntered={(() => {
-              let { clientWidth } = this.refs.modalBody;
-              if (this.state.modalWidth !== clientWidth)
-                this.setState({modalWidth:clientWidth});
-            })}
-            >
-          <Modal.Header closeButton>
-            <Modal.Title>{concept && concept.toString()}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Checkbox onChange={()=>this.setState({noEras:!this.state.noEras})} inline={false}>
-              Raw exposures only
-            </Checkbox>
-            <label>Combine exposures to era with gap of no more than
-              &nbsp;
-              <input type="number" value={this.state.maxgap}
-                placeholder="Max gap days"
-                onChange={evt=>{
-                  this.setState({maxgap:evt.target.value})
-                }} />
-            </label>
-            <div ref="modalBody">
-              {this.getConceptDetail()}
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button onClick={this.closeModal.bind(this)}>Close</Button>
-          </Modal.Footer>
-        </Modal>
         <Panel collapsible expanded={this.state.open}>
           <br />
           <DataTable  _key={rollup.toString()}
@@ -253,9 +194,13 @@ export class RollupTable extends Component {
                       _onRowClick={
                         (evt, idx, obj, datalist)=>{
                           let concept = datalist.getObjectAt(idx);
-                          this.openModal(); //THIS!!!! fix
-                          this.setState({concept});
+                          let concept_id = concept.records[0].rollupConceptId;
+                          this.setState({concept, concept_id});
                         }}
+          />
+          <ExposureExplorer
+            concept={concept}
+            concept_id={concept_id}
           />
         </Panel>
       </div>
@@ -273,56 +218,12 @@ export class RollupTable extends Component {
   */
 }
 
-export class DrugList extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { concept: null };
-  }
-  render() {
-    const {rollup} = this.props;
-    const {concept} = this.state;
-    if (!concept) { // show all concepts in list
-      let concepts = rollup.children.sortBy(d=>-d.aggregate(_.sum, 'personCount'));
-      let list = concepts.map(concept => {
-        let conceptId = concept.records[0].rollupConceptId;
-        return <li key={concept.toString()} >
-                  <a href="#" style={{cursor:'pointer'}} 
-                    onClick={()=>this.setState({concept})}
-                    >{concept.toString()}</a>:
-                  <ConceptSummary
-                    concept={concept}
-                    conceptId={conceptId} />
-                </li>;
-      });
-      return (
-        <div className="drugrollup">
-          <ul>{list}</ul>
-        </div>
-      );
-    } else { // concept already chosen
-      let conceptId = concept.records[0].rollupConceptId;
-      return  <div>
-                {concept.toString()}:
-                <button onClick={()=>this.setState({concept:null })}>Clear concept selection</button>
-                <ConceptSummary
-                  concept={concept}
-                  conceptId={conceptId}
-                  />
-                <ConceptDetail
-                  concept={concept}
-                  conceptId={conceptId}
-                  />
-              </div>;
-    }
-  }
-}
-
 export class ConceptSummary extends Component {
   render() {
-    const {concept, conceptId} = this.props;
+    const {concept, concept_id} = this.props;
     return (
       <div>
-        conceptId: {conceptId}<br/>
+        concept_id: {concept_id}<br/>
         {commify(concept.aggregate(_.sum, 'personCount'))} patients,
         {commify(concept.aggregate(_.sum, 'expCount'))} exposures,
         <SparkBarsChart
@@ -338,26 +239,6 @@ export class ConceptSummary extends Component {
             />
       </div>
     );
-  }
-}
-export class ConceptDetail extends Component {
-  render() {
-    const {concept, conceptId, width, noEras, maxgap} = this.props;
-    return (<div ref='container' className="concept-detail">
-              <SampleTimelinesContainer
-                  width={width}
-                  noEras={noEras}
-                  maxgap={maxgap}
-                  concept={concept}
-                  conceptId={conceptId} />
-              <DistSeriesContainer 
-                  concept={concept}
-                  conceptId={conceptId} 
-                  maxgap={
-                    (noEras || (typeof maxgap === "undefined"))
-                    ? undefined : maxgap}
-              />
-            </div>);
   }
 }
 /*
@@ -434,319 +315,6 @@ export class TimeDist extends Component {
   }
 }
 */
-export class SampleTimelinesContainer extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { 
-      frequentUsers: null,
-      howmany: 2,
-    };
-  }
-  componentDidMount() {
-    const {conceptId} = this.props;
-    const {howmany} = this.state;
-    let params = {
-          howmany: howmany,
-          conceptid: conceptId,
-    };
-    util.cachedPostJsonFetch(
-      'http://localhost:3000/api/People/frequentUsersPost',
-      params)
-    .then(function(json) {
-      this.setState({frequentUsers:json});
-    }.bind(this))
-  }
-  render() {
-    const {concept, conceptId, width, noEras, maxgap} = this.props;
-    const {frequentUsers} = this.state;
-    if (frequentUsers) {
-      let timelines = frequentUsers.map(person => {
-        let personId = person.person_id;
-        return <TimelineContainer   key={personId}
-                                    width={width}
-                                    concept={concept}
-                                    conceptId={conceptId}
-                                    noEras={noEras}
-                                    maxgap={maxgap}
-                                    personId={personId} />
-      })
-      return <div className="timelines">{timelines}</div>;
-    } else {
-      return <div className="waiting">Waiting for sample timeline data...</div>;
-    }
-  }
-}
-export class TimelineContainer extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { 
-      eras: [],
-      exposures: [],
-      fetchingExposures: false,
-      fetchingEras: false,
-    };
-  }
-  componentDidMount() {
-    const {noEras, maxgap} = this.props;
-    this.fetchEras(noEras, maxgap);
-    this.fetchExposures();
-  }
-  componentWillReceiveProps(nextProps) {
-    const {noEras, maxgap} = nextProps;
-    this.fetchEras(noEras, maxgap);
-    this.fetchExposures();
-  }
-  fetchExposures() {
-    const {personId, conceptId, concept} = this.props;
-    this.setState({fetchingExposures:true});
-    let params = { conceptid:conceptId,
-                   personid: personId };
-    util.cachedPostJsonFetch(
-      'http://localhost:3000/api/drug_exposure_rollups/postCall',
-      params)
-    .then(function(json) {
-      this.setState({exposures:json, fetchingExposures:false});
-    }.bind(this))
-  }
-  fetchEras(noEras, maxgap) {
-    if (noEras) {
-      this.setState({eras:[]});
-      return;
-    }
-    const {personId, conceptId, concept} = this.props;
-    maxgap = parseInt(maxgap, 10);
-    if (isNaN(maxgap)) return;
-    this.setState({fetchingEras:true})
-    let params = { maxgap,
-                   conceptid:conceptId,
-                   personid: personId };
-    util.cachedPostJsonFetch(
-      'http://localhost:3000/api/eras/postCall', params)
-    .then(function(json) {
-      this.setState({eras:json, fetchingEras:false});
-    }.bind(this))
-  }
-  render() {
-    const {exposures, eras, fetchingExposures, fetchingEras} = this.state;
-    const {noEras, width, concept, personId} = this.props;
-    if( fetchingExposures || fetchingEras ) {
-      return (
-        <div className="waiting">
-          {fetchingExposures ? `Fetching exposures for ${personId} / ${concept.toString()}` : ''}
-          {fetchingEras ? `Fetching eras for ${personId} / ${concept.toString()}` : ''}
-        </div>);
-    } else if (eras.length || (noEras && exposures.length)) {
-      return <Timeline exposures={exposures} eras={eras} 
-                width={width} 
-                concept={concept} personId={personId}/>;
-    }
-    return <div>Waiting for something to happen</div>;
-  }
-}
-export class Timeline extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { 
-    };
-  }
-  componentDidMount() {
-    const {eras, exposures, concept, personId} = this.props;
-    let lastday;
-    if (eras && eras.length) {
-      lastday = _.last(eras).days_from_first_era +
-                _.last(eras).era_days;
-    } else if (exposures && exposures.length) {
-      lastday = _.last(exposures).days_from_first +
-                _.last(exposures).days_supply;
-    } else {
-      throw new Error("why?");
-    }
-    const height = 40;
-    let div = this.refs.timelinediv;
-    const css = window.getComputedStyle(div, null);
-    const width = div.clientWidth - parseFloat(css.paddingLeft)
-                                  - parseFloat(css.paddingRight);
-    let lo = new util.SvgLayout(
-          width, height,
-          { top: { margin: { size: 2}, },
-            bottom: { margin: { size: 20}, },
-            left: { margin: { size: 5}, },
-            right: { margin: { size: 5}, },
-          });
-    let x = d3.scaleLinear()
-              .range([0, lo.chartWidth()])
-              .domain([0, lastday]);
-    let xAxis = d3.axisBottom()
-                .scale(x)
-                //.tickFormat(this.chartProp.format)
-                //.ticks(this.chartProp.ticks)
-                //.orient(this.zone());
-    /*
-    let tip = d3tip()
-      .attr('class', 'd3-tip')
-      .offset([-10, 0])
-      .html(function(evt) {
-        let era = eras[evt.target.attributes.getNamedItem('data-eranum').value];
-        return "<strong>Frequency:</strong> <span style='color:red'>" + JSON.stringify(era,null,2) + "</span>";
-      })
-    */
-
-    let drugList = _.chain(exposures)
-                      .map(d=>d.drug_name)
-                      .uniq()
-                      .sort()
-                      .value();
-    const seeThroughColors = d3.schemeCategory20
-            .map(d => {
-              let c = d3.color(d);
-              c.opacity = 0.4;
-              return c;
-            });
-    let drugColors = d3.scaleOrdinal()
-                        .range(seeThroughColors)
-                        .domain(drugList);
-    this.setState({
-      height,
-      lo, x, xAxis, lastday, drugList, drugColors,
-    });
-  }
-  componentDidUpdate() {
-    let node = this.refs.timelinediv;
-    const {height, lo, x, xAxis} = this.state;
-    d3.select(node).select('svg>g.axis').call(xAxis);
-    //d3.select(node).select('svg').call(tip);
-  }
-  render() {
-    const {exposures, eras, concept, personId} = this.props;
-    const {height, lo, x, xAxis, lastday, drugList, drugColors} = this.state;
-    if (!lo) 
-      return (<div ref="timelinediv" className="timeline">
-                timeline not ready
-              </div>);
-
-    //return <pre>{JSON.stringify(eras, null, 2)}</pre>;
-    let exposureBars = exposures.map((exposure,i) => {
-      const exposurett = (
-        <Tooltip id="tooltip-exposure">
-          <pre>{JSON.stringify(exposure,null,2)}</pre>
-        </Tooltip>
-      );
-      return (
-              <OverlayTrigger 
-                  key={i}
-                  placement="bottom" overlay={exposurett}>
-                <rect  className="exposure"
-                    data-expnum={i}
-                    x={x(exposure.days_from_first)} 
-                    width={x(exposure.days_supply)}
-                    y={lo.zone('top') + lo.chartHeight() * .35}
-                    height={lo.chartHeight() * .3}
-                    fill={drugColors(exposure.drug_name)}
-                    />
-              </OverlayTrigger>);
-    });
-    let eraBars = eras.map((era,i) => {
-      const eratt = (
-        <Tooltip id="tooltip-era">
-          Era {era.era_num} combines {era.exposures} exposures
-          with {era.total_days_supply} total days supply
-          over {era.era_days} days in era.
-        </Tooltip>
-      );
-          //<pre>{JSON.stringify(era,null,2)}</pre>
-      return (
-              <OverlayTrigger 
-                  key={i}
-                  placement="bottom" overlay={eratt}>
-                <rect  className="era"
-                    data-eranum={i}
-                    x={x(era.days_from_first_era)} 
-                    width={x(era.era_days)}
-                    y={lo.zone('top')}
-                    height={lo.chartHeight()}
-                    />
-              </OverlayTrigger>);
-    });
-    let drugLegend = drugList.map(drug=>{
-      return <Highlightable 
-                key={drug}
-                textContent={drug}
-                styles={{backgroundColor:drugColors(drug)}}
-              />;
-    });
-    let exposuresDesc = 
-      <div>
-        <strong>{exposures.length} exposures:</strong> {' '}
-        {lastday} <span title="first day of exposure to last">days observation</span>, {' '}
-        {_.sum(exposures.map(d=>d.days_supply))} total days supply, {' '}
-        {_.sum( exposures
-                  .map(d => d.days_from_latest)
-                  .filter(d => d > 0)
-          )} gap days between exposures, {' '}
-        {_.sum( exposures
-                  .map(d => -d.days_from_latest)
-                  .filter(d => d > 0)
-          )} days of exposure overlap, {' '}
-        <span title="Medication Possession Ratio">MPR</span>: {' '}
-        { Math.round(
-            100 * _.sum(exposures.map(d=>d.days_supply)) / lastday)
-        }%. <br/>
-        Specific drugs: {drugLegend}
-      </div>;
-    let erasDesc = '';
-    if (eras.length) {
-      erasDesc = 
-        <div>
-          <strong>{eras.length} eras:</strong> {' '}
-          {_.sum(eras.map(e=>e.era_days))} days in eras, {' '}
-          {_.sum(eras.map(e=>e.gap_days))} gap days between eras, {' '}
-          {_.sum( exposures
-                  .map(d => d.days_from_latest)
-                  .filter(d => d > 0)
-          ) - _.sum(eras.map(e=>e.gap_days))} gap days within exposures, {' '}
-          <span title="Medication Possession Ratio">MPR</span> {' '}
-          ignoring days between eras: {' '}
-          { Math.round(
-              100 * _.sum(exposures.map(d=>d.days_supply)) / 
-                    _.sum(eras.map(e=>e.era_days)))
-          }%. {' '}
-        </div>;
-    }
-    return (<div ref="timelinediv" className="timeline">
-              <div className="description">
-                Person {personId}: {' '}
-                {exposuresDesc}
-                {erasDesc}
-              </div>
-              <svg 
-                    width={lo.w()} 
-                    height={lo.h()}>
-                <g className="axis"
-                    transform={
-                      `translate(${lo.zone('left')},${lo.h() - lo.zone('bottom')})`
-                    } />
-                <g className="timeline"
-                    transform={
-                      `translate(${lo.zone('left')},${lo.zone('top')})`
-                    } />
-                {eraBars}
-                {exposureBars}
-              </svg>
-            </div>);
-  }
-}
-export class Highlightable extends Component {
-  render() {
-    const {textContent, htmlContent,
-            styles, triggerFunc, payload,
-            listenFunc} = this.props;
-                //onMouseOver={()=>triggerFunc(payload)}
-    return <span style={styles}
-            >
-              {textContent}
-            </span>;
-  }
-}
 /*
   componentDidUpdate(prevProps, prevState) {
     const {concept} = this.state;
@@ -758,7 +326,7 @@ export class Highlightable extends Component {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               maxgap: this.state.maxgap,
-              conceptid: this.state.conceptId,
+              concept_id: this.state.concept_id,
               personid: this.state.personId
             })
           })

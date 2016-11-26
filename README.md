@@ -67,6 +67,11 @@ Need to write this
 - data composition
   - get help validating
   - what to do with not enough recs for ntiles?
+- next projects:
+  - treatment pathways
+    - sunburst
+    - lifeflow/event flow
+  - vocab/population navigation
 
 
 

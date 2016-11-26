@@ -2,10 +2,13 @@ import './DistCharts.css';
 import React, { Component } from 'react';
 import { Button, Panel, Modal, Checkbox, 
           OverlayTrigger, Tooltip,
-          FormGroup, Radio } from 'react-bootstrap';
+          FormGroup, Radio,
+          Row, Col,
+      } from 'react-bootstrap';
 var d3 = require('d3');
 import _ from 'supergroup';
 import * as util from '../utils';
+import {distfetch} from '../appData';
 
 /* @class DistSeriesContainer
  *  data fetcher for DistSeries, a series of TimeDists
@@ -24,86 +27,63 @@ export class DistSeriesContainer extends Component {
   constructor(props) {
     super(props);
     this.state = { 
-      dsgpDist: null,
+      dists: null,
       ntiles: 120,
     };
   }
   componentDidMount() {
-    const {conceptId, maxgap} = this.props;
-    this.fetchDists(conceptId, maxgap);
+    // change to general params
+    const {concept_id, bundle, maxgap} = this.props;
+    this.fetchDists(concept_id, bundle, maxgap);
   }
   componentWillReceiveProps(nextProps) {
-    const {conceptId, maxgap} = nextProps;
-    this.fetchDists(conceptId, maxgap);
+    const {concept_id, bundle, maxgap} = nextProps;
+    if (nextProps.concept_id !== this.props.concept_id ||
+        nextProps.maxgap !== this.props.maxgap ||
+        nextProps.bundle !== this.props.bundle ||
+        nextProps.ntileOrder !== this.props.ntileOrder)
+      this.fetchDists(concept_id, bundle, maxgap);
   }
-  fetchDists(conceptId, maxgap) {
-    this.setState({dsgpDist: null});
+  fetchDists(concept_id, bundle, maxgap) {
+    this.setState({dists: null});
     let params = {
             ntiles: this.state.ntiles,
-            conceptid: conceptId,
+            concept_id: concept_id,
+            bundle, // exp, era, single
+            //ntileOrder: 'duration',
+            ntileOrder: 'gap',
           };
-    if (typeof maxgap !== "undefined") {
-      params.maxgap = parseInt(maxgap, 10);
+    if (bundle === 'era') {
+      params.maxgap = maxgap;
     }
-    util.cachedPostJsonFetch(
-      'http://localhost:3000/api/daysupplies/dsgpPost',
-      params)
-    .then(function(json) {
-      let recs = json.map( rec => {
-          rec.ds_count = parseInt(rec.ds_count, 10);
-          rec.gp_count = parseInt(rec.gp_count, 10);
-          rec.exp_num = parseInt(rec.exp_num, 10);
-          rec.gap_num = parseInt(rec.gap_num, 10);
-          rec.ds_avg = parseFloat(rec.ds_avg);
-          rec.gp_avg = parseFloat(rec.gp_avg);
-          return rec;
+    let gaps = distfetch(params);
+    params.ntileOrder = 'duration';
+    let exps = distfetch(params);
+    Promise.all([gaps, exps])
+      .then(function(recs) {
+        let bundleCol;
+        if (params.bundle === 'exp') {
+          bundleCol = 'exp_num';
+        } else if (params.bundle === 'era') {
+          bundleCol = 'era_num';
+        } else {
+          throw new Error("not handling yet");
         }
-      );
-      this.setState({dsgpDist: recs});
-    }.bind(this))
-    /*
-    util.cachedPostJsonFetch(
-      'http://localhost:3000/api/daysupplies/postCall',
-      params)
-    .then(function(json) {
-      let recs = json.map( rec => {
-          rec.avg = parseFloat(rec.avg);
-          rec.count = parseFloat(rec.count);
-          rec.exp_or_gap_num = parseFloat(rec.exp_or_gap_num);
-          return rec;
-        }
-      );
-      var daysupply = _.sortBy(recs, 'avg');
-      this.setState({daysupply});
-    }.bind(this))
-
-    params.exp_or_gap = 'gap';
-    util.cachedPostJsonFetch(
-      'http://localhost:3000/api/daysupplies/postCall',
-      params)
-    .then(function(json) {
-      let recs = json.map( rec => {
-          rec.avg = parseFloat(rec.avg);
-          rec.count = parseFloat(rec.count);
-          rec.exp_or_gap_num = parseFloat(rec.exp_or_gap_num);
-          return rec;
-        }
-      );
-      var gaps = _.sortBy(recs, 'avg');
-      this.setState({gaps});
-    }.bind(this))
-    */
+        let dists = _.supergroup(_.flatten(recs), [bundleCol,'ntileOrder','ntile']);
+        this.setState({dists});
+      }.bind(this))
   }
   render() {
-    const {concept, conceptId, maxgap} = this.props;
-    const {dsgpDist, ntiles} = this.state;
-    if (dsgpDist) {
+    const {concept, concept_id, bundle, maxgap} = this.props;
+    const {dists, ntiles} = this.state;
+    if (dists) {
       return <DistSeries  concept={concept}
-                          conceptId={conceptId}
+                          concept_id={concept_id}
                           ntiles={ntiles}
-                          dsgpDist={dsgpDist}
+                          dists={dists}
                           maxgap={maxgap}
                           loading={maxgap}
+                          bundle={bundle}
                           />
     } else {
       return <div className="waiting">Waiting for exposure data...</div>;
@@ -142,12 +122,81 @@ export class DistSeries extends Component {
     };
   }
   render() {
-    const {dsgpDist, ntiles, maxgap} = this.props;
+    const {dists, ntiles, maxgap, bundle} = this.props;
+    const {useFullHeight, DistChartType, ChartTypes} = this.state;
+    console.log(bundle);
+    let Dists = dists.map((dist,i) => {
+      let bundleType;
+      switch (bundle) {
+        case 'exp':
+          bundleType = 'Plain exposure'; break;
+        case 'era':
+          bundleType = 'Era'; break;
+        case 'single':
+          bundleType = 'Single era/patient'; break;
+      }
+      return <ExpGapDist
+                key={i}
+                distNum={i+1}
+                dist={dist}
+                allDists={dists}
+                useFullHeight={useFullHeight}
+                DistChart={ChartTypes[DistChartType]}
+                bundle={bundle}
+                bundleType={bundleType}
+                />;
+    });
+    return  <div>
+              <div>
+                Gaps and exposure durations for up to {' '}
+                {dists.length} {' '}
+                {typeof maxgap === "undefined"
+                    ? 'raw exposures'
+                    : `eras based of max gap of ${maxgap}`}
+                <Checkbox onChange={
+                            ()=>this.setState({useFullHeight:!this.state.useFullHeight})
+                          } inline={false}>
+                  Use full height
+                </Checkbox>
+                  <Radio inline 
+                    checked={DistChartType==='DistBars'}
+                    value={'DistBars'}
+                    onChange={this.onDistChartChange.bind(this)}
+                  >
+                    Distribution bars (kinda weird, but I like it)
+                  </Radio>
+                  {' '}
+                  <Radio inline
+                    checked={DistChartType==='CumulativeDistFunc'}
+                    value={'CumulativeDistFunc'}
+                    onChange={this.onDistChartChange.bind(this)}
+                  >
+                    Cumulative Distribution Function
+                  </Radio>
+                  {' '}
+                  <Radio inline
+                    title="blah blah blah"
+                    disabled={true}
+                    checked={DistChartType==='DensityEstimation'}
+                    //checked={true}
+                    value={'DensityEstimation'}
+                    onChange={this.onDistChartChange.bind(this)}
+                  >
+                    Density Estimation
+                  </Radio>
+                </div>
+              {Dists}
+              <div style={{clear:'both'}} />
+            </div>;
+  }
+  /*
+  renderOLD() {
+    const {dists, ntiles, maxgap} = this.props;
     const {useFullHeight, DistChartType, ChartTypes} = this.state;
     const maxBars = ntiles; // max in series (1st has max)
     let maxCnt = _.sum( dsgpDist
                   .filter(d=>d.exp_num === 1)
-                  .map(d=>d.ds_count));
+                  .map(d=>d.count));
     let dists = [];
     for (let i=1; i<_.max(dsgpDist.map(d=>d.exp_num)); i++) {
       const distRecs = dsgpDist.filter(d=>d.exp_num === i);
@@ -181,7 +230,7 @@ export class DistSeries extends Component {
                     width={timeDistWidth}
                     height={timeDistHeight} 
                     />);
-      */
+      * /
     }
     return  <div>
               Gaps and exposure durations for up to {' '}
@@ -223,6 +272,7 @@ export class DistSeries extends Component {
               {dists}
             </div>;
   }
+  */
   onDistChartChange(e) {
     this.setState({
       DistChartType: e.currentTarget.value,
@@ -243,32 +293,54 @@ export class ExpGapDist extends Component {
     this.state = { 
     };
   }
-  componentWillMount() {
-    const {distRecs, maxBars, maxCnt} = this.props;
-    const top = 12, bottom = 17, left = 40, right = 10,
-          gapChartWidth = 50, expChartWidth = 80,
-          width = gapChartWidth + expChartWidth + left + right,
-          height = distRecs.length + top + bottom;
-          
-    let lo = new util.SvgLayout(
-          width, height,
-          { top: { margin: { size: top}, },
-            bottom: { margin: { size: bottom}, },
-            left: { margin: { size: left}, },
-            right: { margin: { size: right}, },
-          });
-    this.setState({ lo, gapChartWidth, expChartWidth, });
+  render() {
+    const {dist, allDists, distNum, bundleType, useFullHeight, DistChart} = this.props;
+
+    let chart1 = '', chart2 = '';
+    let gaps = '';
+    if (dist.lookup('gap')) {
+      gaps = <DistChart
+                dist={dist.lookup('gap')}
+                allDists={allDists}
+                distNum={distNum}
+                getX={d=>d.avg||0}
+                getY={(d,i)=>i}
+              />;
+    }
+    return (<div className="expgapdist">
+              <Row style={{margin:0}}>
+                <Col md={6} style={{padding:0}} className="gapdist">
+                  Gaps<br/>
+                  {distNum === 1 
+                    ? ` (no gap preceding first ${bundleType.toLowerCase()})` 
+                    : gaps}
+                </Col>
+                <Col md={6} style={{padding:0}} className="distbars">
+                  Duration<br/>
+                  <DistChart
+                      dist={dist.lookup('duration')}
+                      allDists={allDists}
+                      distNum={distNum}
+                      getX={d=>d.avg||0}
+                      getY={(d,i)=>i}
+                    />
+                </Col>
+              </Row>
+              <Row>
+                <Col md={12}>
+                  {bundleType} {distNum}
+                </Col>
+              </Row>
+            </div>);
   }
-  componentDidMount() {
-    let {expgapdistdiv} = this.refs;
-    this.setState({expgapdistdiv});
-  }
+}
+  /*
   setYScale() {
-    const {distRecs, maxBars, maxCnt, exp_num, useFullHeight, DistChart} = this.props;
+    const {dist, allDists, distNum, type, useFullHeight, DistChart} = this.props;
     const {lo, gapChartWidth, expChartWidth, expgapdistdiv} = this.state;
 
 
-    const distCnt = _.sum(distRecs.map(d=>d.ds_count));
+    const distCnt = dist.aggregate(_.sum, 'count');
     let yScaling = distCnt / maxCnt;
     if (useFullHeight) {
       yScaling = 1;
@@ -284,71 +356,165 @@ export class ExpGapDist extends Component {
     if (expgapdistdiv) {
       d3.select(expgapdistdiv).select('svg>g.y-axis').call(yAxis);
     }
-    ydomain = [0, distRecs.length];
+    ydomain = [0, dist.children.length];
     y.domain(ydomain);
     return y;
   }
-  render() {
-    const {distRecs, maxBars, maxCnt, 
-            exp_num, type, useFullHeight, DistChart} = this.props;
-    const {lo, gapChartWidth, expChartWidth, expgapdistdiv} = this.state;
+  */
+export class SmallChart extends Component {
+  constructor(props) {
+    super(props);
+    let {svgLayoutSettings, width=150, height=150} = props;
+    const layoutDefaults =
+                    { top: { margin: { size: 7}, },
+                      bottom: { margin: { size: 20}, },
+                      left: { margin: { size: 30}, },
+                      right: { margin: { size: 9}, },
+                    };
+    let lo = new util.SvgLayout(
+              width, height,
+              _.merge(layoutDefaults, svgLayoutSettings));
 
-    let expbars = '', gapbars = '';
-    let y = this.setYScale();
-    if (expgapdistdiv) {
-      gapbars = <DistChart
-                      distRecs={distRecs}
-                      getX={d=>d.gp_avg||0}
-                      //barY={d=>d.gp_ntile} ? should it be this???
-                      barY={(d,i)=>i}
-                      maxCnt={maxCnt}
-                      maxBars={maxBars}
-                      width={gapChartWidth}
-                      y={y}
-                      exp_num={exp_num}
-                    />;
-      expbars = <DistChart
-                      distRecs={distRecs}
-                      getX={d=>d.ds_avg||0}
-                      //barY={d=>d.gp_ntile} ? should it be this???
-                      barY={(d,i)=>i}
-                      maxCnt={maxCnt}
-                      maxBars={maxBars}
-                      width={expChartWidth}
-                      y={y}
-                      exp_num={exp_num}
-                    />;
+    this.state = {lo, };
+  }
+  componentDidMount(recs) {
+    const {distNum, getX, getY} = this.props;
+    const {lo} = this.state;
+    const {clientWidth, clientHeight} = this.svg;
+    let [width, height] = [clientWidth, clientHeight];
+    lo.w(width);
+    lo.h(height);
+    let yDomain = this.props.yDomain || [recs.length, 0];
+    let x = d3.scaleLinear()
+              .range([0, width])
+              // not general:
+              .domain([_.min([_.min(recs.map(getX)), 0]), _.max(recs.map(getX))]);
+    let xAxis = d3.axisBottom()
+                .ticks(2)
+                .scale(x)
+    d3.select(this.xAxisG).select('g.x-axis').call(xAxis);
+
+
+    /*
+    const distCnt = dist.aggregate(_.sum, 'count');
+    let yScaling = distCnt / maxCnt;
+    if (useFullHeight) {
+      yScaling = 1;
     }
-    return (<div ref="expgapdistdiv" className="expgapdist">
-              <div>
-              <svg 
-                    width={lo.w()} 
-                    height={lo.h()}>
+    let yrange = [lo.chartHeight() * yScaling, 0];
+
+    let ydomain = [0, distCnt];
+
+    let y = d3.scaleLinear().domain(ydomain).range(yrange);
+    let yAxis = d3.axisLeft()
+                .scale(y)
+                .ticks(3)
+    if (expgapdistdiv) {
+      d3.select(expgapdistdiv).select('svg>g.y-axis').call(yAxis);
+    }
+    ydomain = [0, dist.children.length];
+    y.domain(ydomain);
+    */
+    let y = d3.scaleLinear()
+              .range([lo.chartHeight(), 0])
+              .domain(yDomain);
+    let yAxis = d3.axisLeft()
+                .ticks(2)
+                .scale(y)
+    this.setState({ x, y, lo, xAxis, yAxis });
+    //console.log(lo,x,y);
+  }
+  componentDidUpdate() {
+    const {lo, y, x, xAxis, yAxis} = this.state;
+    d3.select(this.xAxisG).call(xAxis);
+    d3.select(this.yAxisG).call(yAxis);
+  }
+  render(insides) {
+    const {lo, y, x} = this.state;
+    //console.log(this.state);
+    //if (y) debugger;
+    return (
+              <svg  width={lo.w()}
+                    height={lo.h()}
+                    ref={(svg) => { 
+                      this.svg = svg;
+                    }}
+                >
                 <g className="y-axis"
+                    ref={(yAxisG) => this.yAxisG = yAxisG}
                     transform={
                       `translate(${lo.zone('left')},${lo.zone('top')})`
                     } />
-                <g className="gapdist"
+                <g className="x-axis"
+                    ref={(xAxisG) => this.xAxisG = xAxisG}
+                    transform={
+                      `translate(${lo.zone('left')},${lo.chartHeight() + lo.zone('top')})`
+                    } />
+                <g className="small-chart"
                     transform={
                       `translate(${lo.zone('left')},${lo.zone('top')})`
                     }>
-                  {gapbars}
-                    />
-                </g>
-                <g className="expdist"
-                    transform={
-                      `translate(${lo.zone('left') + expChartWidth},${lo.zone('top')})`
-                    }>
-
-                  {expbars}
+                    {insides}
                 </g>
               </svg>
-              <div>
-              {type} {exp_num}
-              {exp_num === 1 ? ` (no gap preceding first ${type.toLowerCase()})` : ''}
-              </div>
-              </div>
-            </div>);
+    );
+  }
+}
+export class DistBars extends SmallChart {
+  constructor(props) {
+    super(props);
+  }
+  componentDidMount() {
+    let {dist} = this.props;
+    super.componentDidMount(dist.records);
+    //super.componentDidMount();
+  }
+  render() {
+    const {dist, allDists, distNum, getX, getY} = this.props;
+    const {x, y } = this.state;
+
+    let bars = '';
+    if (x) {
+      bars = dist.records.map((rec,i) => {
+        return <line  key={i}
+                      x1={x(0)} y1={y(i)} 
+                      x2={x(getX(rec))} y2={y(i)} 
+                      className="bar" />;
+      });
+    }
+    return super.render(
+      <g>{bars}</g>
+    );
+    /*
+    return (
+                <svg 
+                      width={lo.w()} 
+                      height={lo.h()}>
+                  <g className="y-axis"
+                      transform={
+                        `translate(${lo.zone('left')},${lo.zone('top')})`
+                      } />
+                  <g className="x-axis"
+                      transform={
+                        `translate(${0},${y.range()[0]})`
+                      } />
+                  <g className="gapdist"
+                      transform={
+                        `translate(${lo.zone('left')},${lo.zone('top')})`
+                      }>
+                    <g ref="distbarsg">
+                      {gapbars}
+                    </g>
+                  </g>
+                  <g className="expdist"
+                      transform={
+                        `translate(${lo.zone('left') + expChartWidth},${lo.zone('top')})`
+                      }>
+                    {bars}
+                  </g>
+                </svg>
+    );
+    */
                 //<rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
                 //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
   }
@@ -421,175 +587,128 @@ export class CumulativeDistFunc extends Component {
                 //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
   }
 }
-export class DistBars extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { };
-  }
-  componentDidMount() {
-    const {distRecs, maxBars, maxCnt, width, getX} = this.props;
-    let x = d3.scaleLinear()
-              .range([0, width])
-              .domain([_.min([_.min(distRecs.map(getX)), 0]), _.max(distRecs.map(getX))]);
-    let xAxis = d3.axisBottom()
-                .ticks(2)
-                .scale(x)
-    this.setState({ x, });
-    let node = this.refs.distbarsg;
-    d3.select(node).select('g.x-axis').call(xAxis);
-
-  }
-  render() {
-    const {distRecs, maxBars, maxCnt, 
-            width, y, getX, exp_num} = this.props;
-    const {x, xAxis, } = this.state;
-
-    let bars = '';
-    if (x) {
-      bars = distRecs.map((rec,i) => {
-        if (exp_num === 2 && i === 110) {
-          console.log(exp_num, getX,
-                      i, y(i));
-        }
-        return <line  key={i}
-                      x1={x(0)} y1={y(i)} 
-                      x2={x(getX(rec))} y2={y(i)} 
-                      className="bar" />;
-      });
-    }
-    return ( <g ref="distbarsg">
-                <g className="x-axis"
-                    transform={
-                      `translate(${0},${y.range()[0]})`
-                    } />
-                {bars}
-            </g>);
-                //<rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
-                //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
-  }
-}
 
 function KDE() {
-	// USER DEFINABLE VARIABLES START
-	var numHistBins = 10; // number of bins for the histogram
-	var calcHistBinsAutmoatic = true; // if true, the number of bins are calculated automatically and
-	// numHistBins is overwritten
-	var showKDP = true; // show the kernel density plot?
-	var bandwith = 4; // bandwith (smoothing constant) h of the kernel density estimator
-	var dataFN = "./faithful.json"; // the filename of the data to be visualized
+  // USER DEFINABLE VARIABLES START
+  var numHistBins = 10; // number of bins for the histogram
+  var calcHistBinsAutmoatic = true; // if true, the number of bins are calculated automatically and
+  // numHistBins is overwritten
+  var showKDP = true; // show the kernel density plot?
+  var bandwith = 4; // bandwith (smoothing constant) h of the kernel density estimator
+  var dataFN = "./faithful.json"; // the filename of the data to be visualized
 
 
-	// USER DEFINABLE VARIABLES END
+  // USER DEFINABLE VARIABLES END
 
 
-	var margin = {top: 20, right: 30, bottom: 30, left: 40},
-			width = 960 - margin.left - margin.right,
-			height = 500 - margin.top - margin.bottom;
+  var margin = {top: 20, right: 30, bottom: 30, left: 40},
+      width = 960 - margin.left - margin.right,
+      height = 500 - margin.top - margin.bottom;
 
-	// the x-scale parameters
-	var x = d3.scale.linear()
-			.domain([30, 110])
-			.range([0, width]);
+  // the x-scale parameters
+  var x = d3.scale.linear()
+      .domain([30, 110])
+      .range([0, width]);
 
-	// the y-scale parameters
-	var y = d3.scale.linear()
-			.domain([0, .15])
-			.range([height, 0]);
+  // the y-scale parameters
+  var y = d3.scale.linear()
+      .domain([0, .15])
+      .range([height, 0]);
 
-	var xAxis = d3.svg.axis()
-			.scale(x)
-			.orient("bottom");
+  var xAxis = d3.svg.axis()
+      .scale(x)
+      .orient("bottom");
 
-	var yAxis = d3.svg.axis()
-			.scale(y)
-			.orient("left")
-			.tickFormat(d3.format("%"));
+  var yAxis = d3.svg.axis()
+      .scale(y)
+      .orient("left")
+      .tickFormat(d3.format("%"));
 
-	var line = d3.svg.line()
-			.x(function(d) { return x(d[0]); })
-			.y(function(d) { return y(d[1]); });
+  var line = d3.svg.line()
+      .x(function(d) { return x(d[0]); })
+      .y(function(d) { return y(d[1]); });
 
-	// the histogram function
-	var histogram;
+  // the histogram function
+  var histogram;
 
-	var svg = d3.select("body").append("svg")
-			.attr("width", width + margin.left + margin.right)
-			.attr("height", height + margin.top + margin.bottom)
-		.append("g")
-			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+  var svg = d3.select("body").append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-	// draw the background
-	svg.append("g")
-			.attr("class", "x axis")
-			.attr("transform", "translate(0," + height + ")")
-			.call(xAxis)
-		.append("text")
-			.attr("class", "label")
-			.attr("x", width)
-			.attr("y", -6)
-			.style("text-anchor", "end")
-			.text("Time between Eruptions (min.)");
+  // draw the background
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis)
+    .append("text")
+      .attr("class", "label")
+      .attr("x", width)
+      .attr("y", -6)
+      .style("text-anchor", "end")
+      .text("Time between Eruptions (min.)");
 
-	svg.append("g")
-			.attr("class", "y axis")
-			.call(yAxis);
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis);
 
 
-	// draw the histogram and kernel density plot	
-	d3.json(dataFN, function(error, faithful) {
+  // draw the histogram and kernel density plot  
+  d3.json(dataFN, function(error, faithful) {
 
-			// calculate the number of histogram bins
-		if( calcHistBinsAutmoatic == true) {
-			numHistBins = Math.ceil(Math.sqrt(faithful.length));  // global variable
-		}
-	// the histogram function
-		histogram = d3.layout.histogram()
-			.frequency(false)
-			.bins(numHistBins);
-		//.bins(x.ticks(500));
-		
-		var data = histogram(faithful);
-		//var kde = kernelDensityEstimator(epanechnikovKernel(7), x.ticks(100));
-		var kde = kernelDensityEstimator(epanechnikovKernel(bandwith), x.ticks(100));
-		
-		//alert("kde is " + kde.toSource());
-		
-		//console.log(svg.datum(kde(faithful)));
+      // calculate the number of histogram bins
+    if( calcHistBinsAutmoatic == true) {
+      numHistBins = Math.ceil(Math.sqrt(faithful.length));  // global variable
+    }
+  // the histogram function
+    histogram = d3.layout.histogram()
+      .frequency(false)
+      .bins(numHistBins);
+    //.bins(x.ticks(500));
+    
+    var data = histogram(faithful);
+    //var kde = kernelDensityEstimator(epanechnikovKernel(7), x.ticks(100));
+    var kde = kernelDensityEstimator(epanechnikovKernel(bandwith), x.ticks(100));
+    
+    //alert("kde is " + kde.toSource());
+    
+    //console.log(svg.datum(kde(faithful)));
 
-		svg.selectAll(".bar")
-				.data(data)
-			.enter().insert("rect", ".axis")
-				.attr("class", "bar")
-				.attr("x", function(d) { return x(d.x) + 1; })
-				.attr("y", function(d) { return y(d.y); })
-				.attr("width", x(data[0].dx + data[0].x) - x(data[0].x) - 1)
-				.attr("height", function(d) { return height - y(d.y); });
-		
-		// show the kernel density plot
-		if(showKDP == true) {
-			svg.append("path")
-				.datum(kde(faithful))
-				.attr("class", "line")
-				.attr("d", line);
-			}
+    svg.selectAll(".bar")
+        .data(data)
+      .enter().insert("rect", ".axis")
+        .attr("class", "bar")
+        .attr("x", function(d) { return x(d.x) + 1; })
+        .attr("y", function(d) { return y(d.y); })
+        .attr("width", x(data[0].dx + data[0].x) - x(data[0].x) - 1)
+        .attr("height", function(d) { return height - y(d.y); });
+    
+    // show the kernel density plot
+    if(showKDP == true) {
+      svg.append("path")
+        .datum(kde(faithful))
+        .attr("class", "line")
+        .attr("d", line);
+      }
 
-	});
+  });
 
-	function kernelDensityEstimator(kernel, x) {
-		return function(sample) {
-			return x.map(function(x) {
-			//console.log(x + " ... " + d3.mean(sample, function(v) { return kernel(x - v); }));		
-			return [x, d3.mean(sample, function(v) { return kernel(x - v); })];
-			});
-		};
-	}
+  function kernelDensityEstimator(kernel, x) {
+    return function(sample) {
+      return x.map(function(x) {
+      //console.log(x + " ... " + d3.mean(sample, function(v) { return kernel(x - v); }));    
+      return [x, d3.mean(sample, function(v) { return kernel(x - v); })];
+      });
+    };
+  }
 
-	function epanechnikovKernel(bandwith) {
-		return function(u) {
-			//return Math.abs(u /= bandwith) <= 1 ? .75 * (1 - u * u) / bandwith : 0;
-		if(Math.abs(u = u /  bandwith) <= 1) {
-		return 0.75 * (1 - u * u) / bandwith;
-		} else return 0;
-		};
-	}
+  function epanechnikovKernel(bandwith) {
+    return function(u) {
+      //return Math.abs(u /= bandwith) <= 1 ? .75 * (1 - u * u) / bandwith : 0;
+    if(Math.abs(u = u /  bandwith) <= 1) {
+    return 0.75 * (1 - u * u) / bandwith;
+    } else return 0;
+    };
+  }
 }

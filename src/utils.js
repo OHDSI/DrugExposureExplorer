@@ -139,10 +139,12 @@ export class SvgLayout {
 	chartHeight(...args) {
 		return this.svgHeight(...args);
 	}
-	w() {
+	w(_w) {
+    if (typeof _w !== 'undefined') this._w = _w;
 		return this._w;
 	}
-	h() {
+	h(_h) {
+    if (typeof _h !== 'undefined') this._h = _h;
 		return this._h;
 	}
 	zone(zones) {
