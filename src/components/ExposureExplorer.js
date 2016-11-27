@@ -37,7 +37,7 @@ export class ExposureExplorer extends Component {
     this.state = {
       showModal: false,
       concept: null,
-			settings: {},
+      settings: {},
     };
   }
   closeModal() {
@@ -46,36 +46,36 @@ export class ExposureExplorer extends Component {
   openModal() {
     this.setState({ showModal: true });
   }
-	componentWillReceiveProps(nextProps) {
-		const {concept} = nextProps;
-		if (concept) {
-			this.openModal();
-		} else {
-			this.closeModal();
-		}
-	}
-	controlSettings(settings) {
-		if (!_.eq(settings, this.state.settings)) {
-			this.setState({settings});
-		}
-	}
+  componentWillReceiveProps(nextProps) {
+    const {concept} = nextProps;
+    if (concept) {
+      this.openModal();
+    } else {
+      this.closeModal();
+    }
+  }
+  controlSettings(settings) {
+    if (!_.eq(settings, this.state.settings)) {
+      this.setState({settings});
+    }
+  }
   render() {
-		const {concept, concept_id} = this.props;
-		const {showModal} = this.state;
-		let controls = '', content = '';
-		if (showModal) {
-			controls = <ExplorerControls 
-										sendSettings={this.controlSettings.bind(this)}
-									/>;
-			if (this.state.settings.bundle) { // check if settings are set yet
-				content = <Content 
-										concept={concept}
-										concept_id={concept_id}
-										{...this.state.settings}
-									/>;
-			}
-		}
-		return (
+    const {concept, concept_id} = this.props;
+    const {showModal} = this.state;
+    let controls = '', content = '';
+    if (showModal) {
+      controls = <ExplorerControls 
+                    sendSettings={this.controlSettings.bind(this)}
+                  />;
+      if (this.state.settings.bundle) { // check if settings are set yet
+        content = <Content 
+                    concept={concept}
+                    concept_id={concept_id}
+                    {...this.state.settings}
+                  />;
+      }
+    }
+    return (
         <Modal bsSize="lg"
             show={this.state.showModal} 
             onHide={this.closeModal.bind(this)}
@@ -84,108 +84,108 @@ export class ExposureExplorer extends Component {
             <Modal.Title>{concept && concept.toString()}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-						{controls}
-						{content}
+            {controls}
+            {content}
           </Modal.Body>
           <Modal.Footer>
             <Button onClick={this.closeModal.bind(this)}>Close</Button>
           </Modal.Footer>
         </Modal>
-		);
-	}
+    );
+  }
 }
 export class ExplorerControls extends Component {
   constructor(props) {
     super(props);
     this.state = {
-			maxgap: 30,
-			bundle: 'era',
+      maxgap: 30,
+      bundle: 'era',
     };
   }
-	componentDidMount() {
-		const {sendSettings} = this.props;
-		sendSettings(this.state);
-	}
-	shouldComponentUpdate(nextProps, nextState) {
-		if (!_.eq(nextState, this.state)) {
-			console.log('ExplorerControl new state', nextState);
-			return true;
-		}
-		return false;
-	}
-	componentDidUpdate() {
-		// because of above, should only be here if state actually changed
-		const {sendSettings} = this.props;
-		sendSettings(this.state);
-	}
-	setSettings(kv) {
-		let state = _.merge(this.state, kv);
-		this.setState(state);
-	}
+  componentDidMount() {
+    const {sendSettings} = this.props;
+    sendSettings(this.state);
+  }
+  shouldComponentUpdate(nextProps, nextState) {
+    if (!_.eq(nextState, this.state)) {
+      console.log('ExplorerControl new state', nextState);
+      return true;
+    }
+    return false;
+  }
+  componentDidUpdate() {
+    // because of above, should only be here if state actually changed
+    const {sendSettings} = this.props;
+    sendSettings(this.state);
+  }
+  setSettings(kv) {
+    let state = _.merge(this.state, kv);
+    this.setState(state);
+  }
   render() {
-		const {maxgap, bundle} = this.state;
-		return (
-			<div>
-				<label>Exposure bundling:&nbsp;&nbsp;&nbsp;
-						<Radio inline 
-							checked={bundle==='era'}
-							value={'era'}
-							onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
-						>
-							Era
-						</Radio>
-						{' '}
-						<Radio inline
-							checked={bundle==='exp'}
-							value={'exp'}
-							onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
-						>
-							Exposure records by exposure order
-						</Radio>
-						{' '}
-						<Radio inline
-							title="blah blah blah"
-							disabled={true}
-							checked={bundle==='single'}
-							value={'single'}
-							onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
-						>
-							Single Era per Patient
-						</Radio>
-				</label>
-				<label>Combine exposures to era with gap of no more than
-					&nbsp;
-					<input type="number" value={this.state.maxgap}
-						placeholder="Max gap days"
-						onChange={evt=>{
-							this.setState({maxgap:evt.target.value})
-						}} />
-				</label>
-			</div>
-		);
-		/*
-						{' '}
-						<Radio inline
-							checked={bundle==='allexp'}
-							value={'allexp'}
-							onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
-						>
-							All exposures together
-						</Radio>
-		*/
-	}
+    const {maxgap, bundle} = this.state;
+    return (
+      <div>
+        <label>Exposure bundling:&nbsp;&nbsp;&nbsp;
+            <Radio inline 
+              checked={bundle==='era'}
+              value={'era'}
+              onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
+            >
+              Era
+            </Radio>
+            {' '}
+            <Radio inline
+              checked={bundle==='exp'}
+              value={'exp'}
+              onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
+            >
+              Exposure records by exposure order
+            </Radio>
+            {' '}
+            <Radio inline
+              title="blah blah blah"
+              disabled={true}
+              checked={bundle==='single'}
+              value={'single'}
+              onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
+            >
+              Single Era per Patient
+            </Radio>
+        </label>
+        <label>Combine exposures to era with gap of no more than
+          &nbsp;
+          <input type="number" value={this.state.maxgap}
+            placeholder="Max gap days"
+            onChange={evt=>{
+              this.setState({maxgap:evt.target.value})
+            }} />
+        </label>
+      </div>
+    );
+    /*
+            {' '}
+            <Radio inline
+              checked={bundle==='allexp'}
+              value={'allexp'}
+              onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
+            >
+              All exposures together
+            </Radio>
+    */
+  }
 }
 class Content extends Component {
   render() {
     const {concept, concept_id, width, bundle, maxgap} = this.props;
-		const allEras = bundle === 'exp' ? '' :
+    const allEras = bundle === 'exp' ? '' :
               <DistSeriesContainer 
                   concept={concept}
                   concept_id={concept_id} 
-									bundle={'allera'}
+                  bundle={'allera'}
                   maxgap={maxgap}
-									seriesOfOne={true}
-									title={`All eras together, ${maxgap} maximum gap`}
+                  seriesOfOne={true}
+                  title={`All eras together, ${maxgap} maximum gap`}
               />
     return (<div ref='container' className="concept-detail">
               <SampleTimelinesContainer
@@ -194,19 +194,19 @@ class Content extends Component {
                   maxgap={maxgap}
                   concept={concept}
                   concept_id={concept_id} />
-							{allEras}
+              {allEras}
               <DistSeriesContainer 
                   concept={concept}
                   concept_id={concept_id} 
-									bundle={'allexp'}
+                  bundle={'allexp'}
                   maxgap={maxgap}
-									seriesOfOne={true}
-									title="All exposures together"
+                  seriesOfOne={true}
+                  title="All exposures together"
               />
               <DistSeriesContainer 
                   concept={concept}
                   concept_id={concept_id} 
-									bundle={bundle}
+                  bundle={bundle}
                   maxgap={maxgap}
               />
             </div>);
@@ -226,7 +226,7 @@ export class SampleTimelinesContainer extends Component {
     let params = {
           howmany,
           concept_id,
-					bundle,
+          bundle,
     };
     util.cachedPostJsonFetch(
       'http://localhost:3000/api/People/frequentUsersPost',
@@ -326,7 +326,7 @@ export class Timeline extends Component {
   constructor(props) {
     super(props);
     this.state = { 
-			descriptionOpen: false,
+      descriptionOpen: false,
     };
   }
   componentDidMount() {
@@ -493,11 +493,11 @@ export class Timeline extends Component {
         </div>;
     }
     return (<div ref="timelinediv" className="timeline">
-							<Button onClick={ ()=> this.setState({ descriptionOpen: !this.state.descriptionOpen })}>
+              <Button onClick={ ()=> this.setState({ descriptionOpen: !this.state.descriptionOpen })}>
                 Person {personId}
-							</Button>
-							<Panel className="description" collapsible 
-											expanded={this.state.descriptionOpen}>
+              </Button>
+              <Panel className="description" collapsible 
+                      expanded={this.state.descriptionOpen}>
                 {exposuresDesc}
                 {erasDesc}
               </Panel>
