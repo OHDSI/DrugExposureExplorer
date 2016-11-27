@@ -178,6 +178,15 @@ export class ExplorerControls extends Component {
 class Content extends Component {
   render() {
     const {concept, concept_id, width, bundle, maxgap} = this.props;
+		const allEras = bundle === 'exp' ? '' :
+              <DistSeriesContainer 
+                  concept={concept}
+                  concept_id={concept_id} 
+									bundle={'allera'}
+                  maxgap={maxgap}
+									seriesOfOne={true}
+									title={`All eras together, ${maxgap} maximum gap`}
+              />
     return (<div ref='container' className="concept-detail">
               <SampleTimelinesContainer
                   width={width}
@@ -185,6 +194,7 @@ class Content extends Component {
                   maxgap={maxgap}
                   concept={concept}
                   concept_id={concept_id} />
+							{allEras}
               <DistSeriesContainer 
                   concept={concept}
                   concept_id={concept_id} 

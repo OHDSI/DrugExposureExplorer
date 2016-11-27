@@ -1,3 +1,18 @@
+/*
+Copyright 2016 Sigfried Gold
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
 import './DistCharts.css';
 import React, { Component } from 'react';
 import { Button, Panel, Modal, Checkbox, 
@@ -49,11 +64,11 @@ export class DistSeriesContainer extends Component {
     let params = {
             ntiles: this.state.ntiles,
             concept_id: concept_id,
-            bundle, // exp, era, allexp, single
+            bundle, // exp, era, allexp, allera, single
             //ntileOrder: 'duration',
             ntileOrder: 'gap',
           };
-    if (bundle === 'era') {
+    if (bundle === 'era' || bundle === 'allera') {
       params.maxgap = maxgap;
     }
     let gaps = distfetch(params);
@@ -68,7 +83,8 @@ export class DistSeriesContainer extends Component {
         } else if (params.bundle === 'era') {
           dists = _.supergroup(_.flatten(recs), 
                       ['era_num','ntileOrder','ntile']);
-        } else if (params.bundle === 'allexp') {
+        } else if (params.bundle === 'allexp' ||
+                   params.bundle === 'allera') {
           // do I need three levels to make it work like others?
           // probably
           dists = _.supergroup(_.flatten(recs), 
@@ -147,6 +163,8 @@ export class DistSeries extends Component {
           bundleType = 'Era'; break;
         case 'allexp':
           bundleType = 'All exposures together'; break;
+        case 'allera':
+          bundleType = 'All eras together'; break;
         case 'single':
           bundleType = 'Single era/patient'; break;
       }
