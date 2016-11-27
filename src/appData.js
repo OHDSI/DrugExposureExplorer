@@ -29,6 +29,7 @@ export function distfetch(params) {
                   rec.exp_num = parseInt(rec.exp_num, 10);
                 } else if (params.bundle === 'era') {
                   rec.era_num = parseInt(rec.era_num, 10);
+                } else if (params.bundle === 'allexp') {
                 } else {
                   throw new Error("not handling yet");
                 }

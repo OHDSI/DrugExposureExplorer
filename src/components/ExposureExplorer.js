@@ -140,7 +140,7 @@ export class ExplorerControls extends Component {
 							value={'exp'}
 							onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
 						>
-							Plain Exposure
+							Exposure records by exposure order
 						</Radio>
 						{' '}
 						<Radio inline
@@ -163,6 +163,16 @@ export class ExplorerControls extends Component {
 				</label>
 			</div>
 		);
+		/*
+						{' '}
+						<Radio inline
+							checked={bundle==='allexp'}
+							value={'allexp'}
+							onChange={(e)=>this.setSettings.bind(this)({bundle:e.currentTarget.value})}
+						>
+							All exposures together
+						</Radio>
+		*/
 	}
 }
 class Content extends Component {
@@ -175,6 +185,14 @@ class Content extends Component {
                   maxgap={maxgap}
                   concept={concept}
                   concept_id={concept_id} />
+              <DistSeriesContainer 
+                  concept={concept}
+                  concept_id={concept_id} 
+									bundle={'allexp'}
+                  maxgap={maxgap}
+									seriesOfOne={true}
+									title="All exposures together"
+              />
               <DistSeriesContainer 
                   concept={concept}
                   concept_id={concept_id} 

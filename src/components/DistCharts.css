@@ -32,3 +32,13 @@ div.timedist, div.expgapdist {
   margin: 5px;
 	border: 1px solid lightgray;
 }
+
+div.dist-series {
+	border: 1px solid gray;
+	margin: 7px;
+	padding: 7px;
+}
+.dist-series-title {
+	font-size: 110%;
+	font-weight: bold;
+}

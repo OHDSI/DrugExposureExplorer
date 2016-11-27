@@ -49,7 +49,7 @@ export class DistSeriesContainer extends Component {
     let params = {
             ntiles: this.state.ntiles,
             concept_id: concept_id,
-            bundle, // exp, era, single
+            bundle, // exp, era, allexp, single
             //ntileOrder: 'duration',
             ntileOrder: 'gap',
           };
@@ -61,22 +61,32 @@ export class DistSeriesContainer extends Component {
     let exps = distfetch(params);
     Promise.all([gaps, exps])
       .then(function(recs) {
-        let bundleCol;
+        let dists;
         if (params.bundle === 'exp') {
-          bundleCol = 'exp_num';
+          dists = _.supergroup(_.flatten(recs), 
+                      ['exp_num','ntileOrder','ntile']);
         } else if (params.bundle === 'era') {
-          bundleCol = 'era_num';
+          dists = _.supergroup(_.flatten(recs), 
+                      ['era_num','ntileOrder','ntile']);
+        } else if (params.bundle === 'allexp') {
+          // do I need three levels to make it work like others?
+          // probably
+          dists = _.supergroup(_.flatten(recs), 
+                      [d=>'one group', 'ntileOrder','ntile']);
         } else {
           throw new Error("not handling yet");
         }
-        let dists = _.supergroup(_.flatten(recs), [bundleCol,'ntileOrder','ntile']);
         this.setState({dists});
       }.bind(this))
   }
   render() {
-    const {concept, concept_id, bundle, maxgap} = this.props;
+    const {concept, concept_id, bundle, maxgap, seriesOfOne} = this.props;
+    let {title} = this.props;
     const {dists, ntiles} = this.state;
     if (dists) {
+      if (seriesOfOne && dists.length !== 1) {
+        throw new Error("unexpected data");
+      }
       return <DistSeries  concept={concept}
                           concept_id={concept_id}
                           ntiles={ntiles}
@@ -84,6 +94,8 @@ export class DistSeriesContainer extends Component {
                           maxgap={maxgap}
                           loading={maxgap}
                           bundle={bundle}
+                          seriesOfOne={seriesOfOne}
+                          title={title}
                           />
     } else {
       return <div className="waiting">Waiting for exposure data...</div>;
@@ -122,16 +134,19 @@ export class DistSeries extends Component {
     };
   }
   render() {
-    const {dists, ntiles, maxgap, bundle} = this.props;
+    const {dists, ntiles, maxgap, bundle, seriesOfOne} = this.props;
+    let {title} = this.props;
     const {useFullHeight, DistChartType, ChartTypes} = this.state;
     console.log(bundle);
     let Dists = dists.map((dist,i) => {
       let bundleType;
       switch (bundle) {
         case 'exp':
-          bundleType = 'Plain exposure'; break;
+          bundleType = 'Exposure records by exposure order'; break;
         case 'era':
           bundleType = 'Era'; break;
+        case 'allexp':
+          bundleType = 'All exposures together'; break;
         case 'single':
           bundleType = 'Single era/patient'; break;
       }
@@ -144,47 +159,56 @@ export class DistSeries extends Component {
                 DistChart={ChartTypes[DistChartType]}
                 bundle={bundle}
                 bundleType={bundleType}
+                seriesOfOne={seriesOfOne}
                 />;
     });
-    return  <div>
-              <div>
+    let fullHeightCheckbox = seriesOfOne ? '' :
+          <Checkbox onChange={
+                      ()=>this.setState({useFullHeight:!this.state.useFullHeight})
+                    } inline={false}>
+            Use full height
+          </Checkbox>
+    title = title ||
+              <span>
                 Gaps and exposure durations for up to {' '}
                 {dists.length} {' '}
                 {typeof maxgap === "undefined"
                     ? 'raw exposures'
                     : `eras based of max gap of ${maxgap}`}
-                <Checkbox onChange={
-                            ()=>this.setState({useFullHeight:!this.state.useFullHeight})
-                          } inline={false}>
-                  Use full height
-                </Checkbox>
-                  <Radio inline 
-                    checked={DistChartType==='DistBars'}
-                    value={'DistBars'}
-                    onChange={this.onDistChartChange.bind(this)}
-                  >
-                    Distribution bars (kinda weird, but I like it)
-                  </Radio>
-                  {' '}
-                  <Radio inline
-                    checked={DistChartType==='CumulativeDistFunc'}
-                    value={'CumulativeDistFunc'}
-                    onChange={this.onDistChartChange.bind(this)}
-                  >
-                    Cumulative Distribution Function
-                  </Radio>
-                  {' '}
-                  <Radio inline
-                    title="blah blah blah"
-                    disabled={true}
-                    checked={DistChartType==='DensityEstimation'}
-                    //checked={true}
-                    value={'DensityEstimation'}
-                    onChange={this.onDistChartChange.bind(this)}
-                  >
-                    Density Estimation
-                  </Radio>
+              </span>;
+    return  <div className="dist-series">
+              <div>
+                {fullHeightCheckbox}
+                <div className="dist-series-title">
+                  {title}
                 </div>
+                <Radio inline 
+                  checked={DistChartType==='DistBars'}
+                  value={'DistBars'}
+                  onChange={this.onDistChartChange.bind(this)}
+                >
+                  Distribution bars (kinda weird, but I like it)
+                </Radio>
+                {' '}
+                <Radio inline
+                  checked={DistChartType==='CumulativeDistFunc'}
+                  value={'CumulativeDistFunc'}
+                  onChange={this.onDistChartChange.bind(this)}
+                >
+                  Cumulative Distribution Function
+                </Radio>
+                {' '}
+                <Radio inline
+                  title="blah blah blah"
+                  disabled={true}
+                  checked={DistChartType==='DensityEstimation'}
+                  //checked={true}
+                  value={'DensityEstimation'}
+                  onChange={this.onDistChartChange.bind(this)}
+                >
+                  Density Estimation
+                </Radio>
+              </div>
               {Dists}
               <div style={{clear:'both'}} />
             </div>;
@@ -210,9 +234,12 @@ export class ExpGapDist extends Component {
     };
   }
   render() {
-    const {dist, allDists, distNum, bundleType, useFullHeight, DistChart} = this.props;
+    const {dist, allDists, distNum, bundleType, 
+            useFullHeight, DistChart, seriesOfOne} = this.props;
 
     let chart1 = '', chart2 = '';
+    const distCnt = dist.lookup('duration').aggregate(_.sum, 'count');
+    const maxCnt = allDists[0].lookup('duration').aggregate(_.sum, 'count');
     let gaps = '';
     if (dist.lookup('gap')) {
       gaps = <DistChart
@@ -224,9 +251,11 @@ export class ExpGapDist extends Component {
                   _.sum(dist.lookup('gap').records.slice(0,i).map(d=>d.count))
                 }
                 useFullHeight={useFullHeight}
+                distCnt={distCnt}
+                maxCnt={maxCnt}
               />;
     }
-    if (distNum === 1) {
+    if (distNum === 1 && !seriesOfOne) {
       gaps = <div><br/><br/>
                 No gap<br/>preceding first <br/>
                 {bundleType.toLowerCase()}</div>;
@@ -248,6 +277,8 @@ export class ExpGapDist extends Component {
                         _.sum(dist.lookup('duration').records.slice(0,i).map(d=>d.count))
                       }
                       useFullHeight={useFullHeight}
+                      distCnt={distCnt}
+                      maxCnt={maxCnt}
                     />
                 </Col>
               </Row>
@@ -282,7 +313,7 @@ export class SmallChart extends Component {
     let [width, height] = [clientWidth, clientHeight];
     lo.w(width);
     lo.h(height);
-    let yDomain = this.props.yDomain || [recs.length, 0];
+    //let yDomain = this.props.yDomain || [recs.length, 0];
     let x = d3.scaleLinear()
               .range([0, lo.chartWidth()])
               // not general:
@@ -292,7 +323,7 @@ export class SmallChart extends Component {
                 .scale(x)
     let y = d3.scaleLinear()
               .range([0, lo.chartHeight()])
-              .domain(yDomain);
+              //.domain(yDomain);
     let yAxis = d3.axisLeft()
                 .ticks(2)
                 .scale(y)
@@ -341,14 +372,15 @@ export class DistBars extends SmallChart {
     super.componentDidMount(dist.records);
   }
   render() {
-    const {dist, allDists, distNum, getX, getY, useFullHeight} = this.props;
+    const {dist, allDists, distNum, getX, getY, 
+            useFullHeight, distCnt, maxCnt} = this.props;
     const {lo, y, x, xAxis, yAxis} = this.state;
                 
     let bars = '';
     if (x) {
-      const distCnt = dist.aggregate(_.sum, 'count');
-      const maxCnt = allDists[0].aggregate(_.sum, 'count');
-      y.range([0, lo.chartHeight()])
+      //const distCnt = dist.aggregate(_.sum, 'count');
+      //const maxCnt = allDists[0].aggregate(_.sum, 'count');
+      //y.range([0, lo.chartHeight()]) // already done in SmallChart
       if (!useFullHeight) {
         y.domain([0, maxCnt]);
       } else {
@@ -378,13 +410,14 @@ export class CumulativeDistFunc extends SmallChart {
     super.componentDidMount(dist.records);
   }
   render() {
-    const {dist, allDists, distNum, getX, getY, useFullHeight} = this.props;
+    const {dist, allDists, distNum, getX, getY, 
+            useFullHeight, distCnt, maxCnt} = this.props;
     const {lo, y, x, xAxis, yAxis} = this.state;
 
     if (!x) return super.render('');
 
-    const distCnt = dist.aggregate(_.sum, 'count');
-    const maxCnt = allDists[0].aggregate(_.sum, 'count');
+    //const distCnt = dist.aggregate(_.sum, 'count');
+    //const maxCnt = allDists[0].aggregate(_.sum, 'count');
     y.range([0, lo.chartHeight()])
     if (!useFullHeight) {
       y.domain([0, maxCnt]);
