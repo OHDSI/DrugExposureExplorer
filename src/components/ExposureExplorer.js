@@ -502,39 +502,3 @@ export class Highlightable extends Component {
             </span>;
   }
 }
-/*
-  componentDidUpdate(prevProps, prevState) {
-    const {concept} = this.state;
-      if (this.state.personId) {
-        util.cachedFetch(
-          'http://localhost:3000/api/eras/postCall',
-          {
-            method: 'post',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              maxgap: this.state.maxgap,
-              concept_id: this.state.concept_id,
-              personid: this.state.personId
-            })
-          })
-          .then(function(json) {
-            let recs = json.map( rec => {
-                rec.avg = parseFloat(rec.avg);
-                rec.count = parseFloat(rec.count);
-                rec.exp_or_gap_num = parseFloat(rec.exp_or_gap_num);
-                return rec;
-              }
-            );
-            var gaps = _.sortBy(recs, 'avg');
-            this.setState({gaps});
-          }.bind(this))
-          .catch(function(ex) {
-            console.error('parsing failed', ex)
-          });
-      }
-    }
-  }
-  */
-
-
-

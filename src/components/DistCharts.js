@@ -189,90 +189,6 @@ export class DistSeries extends Component {
               <div style={{clear:'both'}} />
             </div>;
   }
-  /*
-  renderOLD() {
-    const {dists, ntiles, maxgap} = this.props;
-    const {useFullHeight, DistChartType, ChartTypes} = this.state;
-    const maxBars = ntiles; // max in series (1st has max)
-    let maxCnt = _.sum( dsgpDist
-                  .filter(d=>d.exp_num === 1)
-                  .map(d=>d.count));
-    let dists = [];
-    for (let i=1; i<_.max(dsgpDist.map(d=>d.exp_num)); i++) {
-      const distRecs = dsgpDist.filter(d=>d.exp_num === i);
-      let ekey = `exp_${i}`;
-      dists.push(<ExpGapDist
-                    key={ekey}
-                    exp_num={i}
-                    type={typeof maxgap === "undefined"
-                            ? 'Exposure'
-                            : 'Era'}
-                    distRecs={distRecs}
-                    maxCnt={maxCnt}
-                    maxBars={maxBars}
-                    useFullHeight={useFullHeight}
-                    DistChart={ChartTypes[DistChartType]}
-                    />);
-      /*
-      let gkey = `gap_${i}`;
-      dists.push(<TimeDist
-                    key={gkey}
-                    numbers={
-                      gaps
-                        .filter(d=>d.exp_or_gap_num === i)
-                        .map(d=>d.avg)
-                    }
-                    maxCnt={maxCnt}
-                    n={_.sum( gaps
-                        .filter(d=>d.exp_or_gap_num === i)
-                        .map(d=>d.count)
-                        )}
-                    width={timeDistWidth}
-                    height={timeDistHeight} 
-                    />);
-      * /
-    }
-    return  <div>
-              Gaps and exposure durations for up to {' '}
-              {dists.length} {' '}
-              {typeof maxgap === "undefined"
-                  ? 'raw exposures'
-                  : `eras based of max gap of ${maxgap}`}
-              <Checkbox onChange={
-                          ()=>this.setState({useFullHeight:!this.state.useFullHeight})
-                        } inline={false}>
-                Use full height
-              </Checkbox>
-                <Radio inline 
-                  checked={DistChartType==='DistBars'}
-                  value={'DistBars'}
-                  onChange={this.onDistChartChange.bind(this)}
-                >
-                  Distribution bars (kinda weird, but I like it)
-                </Radio>
-                {' '}
-                <Radio inline
-                  checked={DistChartType==='CumulativeDistFunc'}
-                  value={'CumulativeDistFunc'}
-                  onChange={this.onDistChartChange.bind(this)}
-                >
-                  Cumulative Distribution Function
-                </Radio>
-                {' '}
-                <Radio inline
-                  title="blah blah blah"
-                  disabled={true}
-                  checked={DistChartType==='DensityEstimation'}
-                  //checked={true}
-                  value={'DensityEstimation'}
-                  onChange={this.onDistChartChange.bind(this)}
-                >
-                  Density Estimation
-                </Radio>
-              {dists}
-            </div>;
-  }
-  */
   onDistChartChange(e) {
     this.setState({
       DistChartType: e.currentTarget.value,
@@ -303,17 +219,23 @@ export class ExpGapDist extends Component {
                 dist={dist.lookup('gap')}
                 allDists={allDists}
                 distNum={distNum}
-                getX={d=>d.avg||0}
-                getY={(d,i)=>i}
+                getX={d=>d.avg}
+                getY={(d,i)=>
+                  _.sum(dist.lookup('gap').records.slice(0,i).map(d=>d.count))
+                }
+                useFullHeight={useFullHeight}
               />;
+    }
+    if (distNum === 1) {
+      gaps = <div><br/><br/>
+                No gap<br/>preceding first <br/>
+                {bundleType.toLowerCase()}</div>;
     }
     return (<div className="expgapdist">
               <Row style={{margin:0}}>
                 <Col md={6} style={{padding:0}} className="gapdist">
                   Gaps<br/>
-                  {distNum === 1 
-                    ? ` (no gap preceding first ${bundleType.toLowerCase()})` 
-                    : gaps}
+                  {gaps}
                 </Col>
                 <Col md={6} style={{padding:0}} className="distbars">
                   Duration<br/>
@@ -321,8 +243,11 @@ export class ExpGapDist extends Component {
                       dist={dist.lookup('duration')}
                       allDists={allDists}
                       distNum={distNum}
-                      getX={d=>d.avg||0}
-                      getY={(d,i)=>i}
+                      getX={d=>d.avg}
+                      getY={(d,i)=>
+                        _.sum(dist.lookup('duration').records.slice(0,i).map(d=>d.count))
+                      }
+                      useFullHeight={useFullHeight}
                     />
                 </Col>
               </Row>
@@ -334,33 +259,6 @@ export class ExpGapDist extends Component {
             </div>);
   }
 }
-  /*
-  setYScale() {
-    const {dist, allDists, distNum, type, useFullHeight, DistChart} = this.props;
-    const {lo, gapChartWidth, expChartWidth, expgapdistdiv} = this.state;
-
-
-    const distCnt = dist.aggregate(_.sum, 'count');
-    let yScaling = distCnt / maxCnt;
-    if (useFullHeight) {
-      yScaling = 1;
-    }
-    let yrange = [lo.chartHeight() * yScaling, 0];
-
-    let ydomain = [0, distCnt];
-
-    let y = d3.scaleLinear().domain(ydomain).range(yrange);
-    let yAxis = d3.axisLeft()
-                .scale(y)
-                .ticks(3)
-    if (expgapdistdiv) {
-      d3.select(expgapdistdiv).select('svg>g.y-axis').call(yAxis);
-    }
-    ydomain = [0, dist.children.length];
-    y.domain(ydomain);
-    return y;
-  }
-  */
 export class SmallChart extends Component {
   constructor(props) {
     super(props);
@@ -368,8 +266,8 @@ export class SmallChart extends Component {
     const layoutDefaults =
                     { top: { margin: { size: 7}, },
                       bottom: { margin: { size: 20}, },
-                      left: { margin: { size: 30}, },
-                      right: { margin: { size: 9}, },
+                      left: { margin: { size: 50}, },
+                      right: { margin: { size: 8}, },
                     };
     let lo = new util.SvgLayout(
               width, height,
@@ -386,53 +284,26 @@ export class SmallChart extends Component {
     lo.h(height);
     let yDomain = this.props.yDomain || [recs.length, 0];
     let x = d3.scaleLinear()
-              .range([0, width])
+              .range([0, lo.chartWidth()])
               // not general:
               .domain([_.min([_.min(recs.map(getX)), 0]), _.max(recs.map(getX))]);
     let xAxis = d3.axisBottom()
                 .ticks(2)
                 .scale(x)
-    d3.select(this.xAxisG).select('g.x-axis').call(xAxis);
-
-
-    /*
-    const distCnt = dist.aggregate(_.sum, 'count');
-    let yScaling = distCnt / maxCnt;
-    if (useFullHeight) {
-      yScaling = 1;
-    }
-    let yrange = [lo.chartHeight() * yScaling, 0];
-
-    let ydomain = [0, distCnt];
-
-    let y = d3.scaleLinear().domain(ydomain).range(yrange);
-    let yAxis = d3.axisLeft()
-                .scale(y)
-                .ticks(3)
-    if (expgapdistdiv) {
-      d3.select(expgapdistdiv).select('svg>g.y-axis').call(yAxis);
-    }
-    ydomain = [0, dist.children.length];
-    y.domain(ydomain);
-    */
     let y = d3.scaleLinear()
-              .range([lo.chartHeight(), 0])
+              .range([0, lo.chartHeight()])
               .domain(yDomain);
     let yAxis = d3.axisLeft()
                 .ticks(2)
                 .scale(y)
     this.setState({ x, y, lo, xAxis, yAxis });
-    //console.log(lo,x,y);
   }
   componentDidUpdate() {
     const {lo, y, x, xAxis, yAxis} = this.state;
     d3.select(this.xAxisG).call(xAxis);
-    d3.select(this.yAxisG).call(yAxis);
   }
   render(insides) {
     const {lo, y, x} = this.state;
-    //console.log(this.state);
-    //if (y) debugger;
     return (
               <svg  width={lo.w()}
                     height={lo.h()}
@@ -451,6 +322,7 @@ export class SmallChart extends Component {
                       `translate(${lo.zone('left')},${lo.chartHeight() + lo.zone('top')})`
                     } />
                 <g className="small-chart"
+                    ref={(chartG) => this.chartG = chartG}
                     transform={
                       `translate(${lo.zone('left')},${lo.zone('top')})`
                     }>
@@ -467,84 +339,69 @@ export class DistBars extends SmallChart {
   componentDidMount() {
     let {dist} = this.props;
     super.componentDidMount(dist.records);
-    //super.componentDidMount();
   }
   render() {
-    const {dist, allDists, distNum, getX, getY} = this.props;
-    const {x, y } = this.state;
-
+    const {dist, allDists, distNum, getX, getY, useFullHeight} = this.props;
+    const {lo, y, x, xAxis, yAxis} = this.state;
+                
     let bars = '';
     if (x) {
+      const distCnt = dist.aggregate(_.sum, 'count');
+      const maxCnt = allDists[0].aggregate(_.sum, 'count');
+      y.range([0, lo.chartHeight()])
+      if (!useFullHeight) {
+        y.domain([0, maxCnt]);
+      } else {
+        y.domain([0, distCnt]);
+      }
+      d3.select(this.yAxisG).call(yAxis);
+      //y.domain([dist.children.length, 0]);
       bars = dist.records.map((rec,i) => {
+        //let ypos = _.sum(dist.records.slice(0,i).map(d=>d.count));
         return <line  key={i}
-                      x1={x(0)} y1={y(i)} 
-                      x2={x(getX(rec))} y2={y(i)} 
+                      x1={x(0)} y1={y(getY(rec,i))} 
+                      x2={x(getX(rec))} y2={y(getY(rec,i))} 
                       className="bar" />;
       });
     }
     return super.render(
       <g>{bars}</g>
     );
-    /*
-    return (
-                <svg 
-                      width={lo.w()} 
-                      height={lo.h()}>
-                  <g className="y-axis"
-                      transform={
-                        `translate(${lo.zone('left')},${lo.zone('top')})`
-                      } />
-                  <g className="x-axis"
-                      transform={
-                        `translate(${0},${y.range()[0]})`
-                      } />
-                  <g className="gapdist"
-                      transform={
-                        `translate(${lo.zone('left')},${lo.zone('top')})`
-                      }>
-                    <g ref="distbarsg">
-                      {gapbars}
-                    </g>
-                  </g>
-                  <g className="expdist"
-                      transform={
-                        `translate(${lo.zone('left') + expChartWidth},${lo.zone('top')})`
-                      }>
-                    {bars}
-                  </g>
-                </svg>
-    );
-    */
-                //<rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
-                //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
   }
 }
-export class CumulativeDistFunc extends Component {
+export class CumulativeDistFunc extends SmallChart {
   constructor(props) {
     super(props);
-    this.state = { };
   }
   componentDidMount() {
-    const {distRecs, maxBars, maxCnt, width, getX, y} = this.props;
-    let x = d3.scaleLinear()
-              .range([0, width])
-              .domain([_.min([_.min(distRecs.map(getX)), 0]), _.max(distRecs.map(getX))]);
-    let xAxis = d3.axisBottom()
-                .ticks(2)
-                .scale(x)
-    this.setState({ x, });
-    let node = this.refs.distbarsg;
-    d3.select(node).select('g.x-axis').call(xAxis);
+    let {dist} = this.props;
+    super.componentDidMount(dist.records);
+  }
+  render() {
+    const {dist, allDists, distNum, getX, getY, useFullHeight} = this.props;
+    const {lo, y, x, xAxis, yAxis} = this.state;
 
+    if (!x) return super.render('');
 
-    const cnt = distRecs.length;
-    let data = distRecs.map((d,i) => {
+    const distCnt = dist.aggregate(_.sum, 'count');
+    const maxCnt = allDists[0].aggregate(_.sum, 'count');
+    y.range([0, lo.chartHeight()])
+    if (!useFullHeight) {
+      y.domain([0, maxCnt]);
+    } else {
+      y.domain([0, distCnt]);
+    }
+                
+    const recs = dist.records.filter(d=>getX(d) !== null);
+    let data = recs.map((d,i) => {
       return {
-        x: getX(d) * -1,
+        x: getX(d),
+        y: getY(d,i),
         //y: (i+1) / cnt,
-        y: -i,
       };
     });
+
+
     /*
      * getting code from http://bl.ocks.org/jdittmar/6282869
     var dataLength = data.length;
@@ -554,8 +411,13 @@ export class CumulativeDistFunc extends Component {
       dataLookup[data[i].orf]=data[i].x;
     };
     */
+    x.range([0, lo.chartWidth()])
+    y.range([lo.chartHeight(), 0])
     x.domain(d3.extent(data, function(d) { return d.x; })).nice();
     y.domain(d3.extent(data, function(d) { return d.y; })).nice();
+
+    console.log(data.map(d=>`(${d.x},${d.y})`).join(' '));
+    console.log(recs);
 
     var line = d3.line()
         .x(function(d) { return x(d.x); })
@@ -563,28 +425,15 @@ export class CumulativeDistFunc extends Component {
     let color = d3.scaleOrdinal()
                         .range(d3.schemeCategory10);
 
-    d3.select(node).append("path")
+    d3.select(this.chartG).append("path")
         .datum(data)
         .attr("class", "line")
         .attr("d", line)
         .style("stroke", function(d) { 
           return color("initial"); 
         });
-  }
-  render() {
-    const {distRecs, maxBars, maxCnt, 
-            width, y, getX, exp_num} = this.props;
-    const {x, xAxis, } = this.state;
 
-
-    return ( <g ref="distbarsg">
-                <g className="x-axis"
-                    transform={
-                      `translate(${0},${y.range()[0]})`
-                    } />
-            </g>);
-                //<rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
-                //<line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
+    return super.render('');
   }
 }
 

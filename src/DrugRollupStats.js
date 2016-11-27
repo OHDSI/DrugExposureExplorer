@@ -42,17 +42,7 @@ export class RollupListContainer extends Component {
         let rollups = this.dataPrep(json);
         this.setState({rollups});
       }.bind(this))
-      /*
-      .catch(function(ex) {
-        console.error('parsing failed', ex)
-      });
-      */
   }
-  /*
-  setContainerState(obj) {
-    this.setState(obj);
-  }
-  */
   dataPrep(json) {
     let recs = json.map(
       record => {
@@ -77,21 +67,6 @@ export class RollupListContainer extends Component {
   render() {
     return <RollupList rollups={this.state.rollups} />
   }
-  /*
-  render() {
-    var children = React.Children.map(this.props.children, 
-          (child) => React.cloneElement(child, { 
-            containerState: this.state,
-            setContainerState: this.setContainerState.bind(this),
-          }));
-    return (
-      <div>
-        this is the container
-        {children}
-      </div>
-    );
-  }
-  */
 }
 export class RollupList extends Component {
   constructor(props) {
@@ -109,7 +84,6 @@ export class RollupList extends Component {
   }
 }
 
-
 export class RollupTable extends Component {
   constructor(props) {
     super(props);
@@ -117,21 +91,6 @@ export class RollupTable extends Component {
       open: true,
     };
   }
-  /*
-  getExposureExplorer() {
-    const {concept, modalWidth, noEras, maxgap} = this.state;
-    if (concept && modalWidth) {
-      let concept_id = concept.records[0].rollupConceptId;
-      return <ExposureExplorer 
-                width={modalWidth}
-                noEras={noEras}
-                maxgap={maxgap}
-                concept={concept} 
-                concept_id={concept_id}/>;
-    }
-    return <h3>no concept detail</h3>;
-  }
-  */
   render() {
     var {rollup} = this.props;
     var {concept, concept_id} = this.state;
@@ -206,16 +165,6 @@ export class RollupTable extends Component {
       </div>
     );
   }
-  /*
-  render() {
-    const {rollup} = this.props;
-    return (
-      <span style={{marginLeft: 10}}>
-        Concepts: {rollup.children.length}
-      </span>
-    );
-  }
-  */
 }
 
 export class ConceptSummary extends Component {
@@ -241,112 +190,3 @@ export class ConceptSummary extends Component {
     );
   }
 }
-/*
-export class TimeDist extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { 
-    };
-  }
-  componentWillMount() {
-    const {width, height, numbers, n, maxCnt} = this.props;
-    const timeDistWidth = 300;
-    let lo = new util.SvgLayout(
-          width, height,
-          { top: { margin: { size: 2}, },
-            bottom: { margin: { size: 20}, },
-            left: { margin: { size: 55}, },
-            right: { margin: { size: 5}, },
-          });
-    let x = d3.scaleLinear()
-              .range([0, lo.chartWidth()])
-              .domain([_.min([_.min(numbers), 0]), _.max(numbers)]);
-    let xAxis = d3.axisBottom()
-                .scale(x)
-    let y = d3.scaleLinear()
-              .range([0,lo.chartHeight() * n / maxCnt])
-              .domain([0, maxCnt])
-    let yAxis = d3.axisLeft()
-                .scale(y)
-
-    this.setState({
-      lo, x, xAxis, y, yAxis
-    });
-  }
-  componentDidMount() {
-    const {lo, x, xAxis, y, yAxis} = this.state;
-    let node = this.refs.timedistdiv;
-    d3.select(node).select('svg>g.x-axis').call(xAxis);
-    d3.select(node).select('svg>g.y-axis').call(yAxis);
-
-  }
-  render() {
-    const {numbers, n, maxCnt} = this.props;
-    const {lo, x, xAxis, y, yAxis} = this.state;
-    //if (!lo) return <div>just a second...</div>;
-    let bars = numbers.map((num,i) => {
-      return <line  key={i}
-                    x1={x(0)} y1={y(1 + i)} 
-                    x2={x(num)} y2={y(1 + i)} 
-                    className="bar" />;
-    });
-    return (<div ref="timedistdiv" className="timedist">
-              <svg 
-                    width={lo.w()} 
-                    height={lo.h()}>
-                <g className="x-axis"
-                    transform={
-                      `translate(${lo.zone('left')},${lo.h() - lo.zone('bottom')})`
-                    } />
-                <g className="y-axis"
-                    transform={
-                      `translate(${lo.zone('left')},${lo.zone('top')})`
-                    } />
-                <rect x={1} y={1} width={lo.chartWidth()} height={lo.chartHeight()} />
-                <line x1={x(0)} y1={0} x2={x(0)} y2={lo.chartHeight()} className="zero"/>
-                <g className="timedist"
-                    transform={
-                      `translate(${lo.zone('left')},${lo.zone('top')})`
-                    }>
-                </g>
-                  {bars}
-              </svg>
-            </div>);
-  }
-}
-*/
-/*
-  componentDidUpdate(prevProps, prevState) {
-    const {concept} = this.state;
-      if (this.state.personId) {
-        util.cachedFetch(
-          'http://localhost:3000/api/eras/postCall',
-          {
-            method: 'post',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              maxgap: this.state.maxgap,
-              concept_id: this.state.concept_id,
-              personid: this.state.personId
-            })
-          })
-          .then(function(json) {
-            let recs = json.map( rec => {
-                rec.avg = parseFloat(rec.avg);
-                rec.count = parseFloat(rec.count);
-                rec.exp_or_gap_num = parseFloat(rec.exp_or_gap_num);
-                return rec;
-              }
-            );
-            var gaps = _.sortBy(recs, 'avg');
-            this.setState({gaps});
-          }.bind(this))
-          .catch(function(ex) {
-            console.error('parsing failed', ex)
-          });
-      }
-    }
-  }
-  */
-
-
