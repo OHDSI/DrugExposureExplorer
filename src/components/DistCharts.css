@@ -1,5 +1,4 @@
 .bar {
-  fill: #bbb;
   shape-rendering: crispEdges;
 }
 
@@ -22,23 +21,23 @@
 
 /*
 svg {
-	border: 4px solid green;
+  border: 4px solid green;
 }
 */
 
 div.timedist, div.expgapdist {
   float: left;
-	clear: right;
+  clear: right;
   margin: 5px;
-	border: 1px solid lightgray;
+  border: 1px solid lightgray;
 }
 
 div.dist-series {
-	border: 1px solid gray;
-	margin: 7px;
-	padding: 7px;
+  border: 1px solid gray;
+  margin: 7px;
+  padding: 7px;
 }
 .dist-series-title {
-	font-size: 110%;
-	font-weight: bold;
+  font-size: 110%;
+  font-weight: bold;
 }

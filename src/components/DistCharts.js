@@ -23,6 +23,7 @@ import { Button, Panel, Modal, Checkbox,
 var d3 = require('d3');
 import _ from 'supergroup';
 import * as util from '../utils';
+import {commify} from '../utils';
 import {distfetch} from '../appData';
 
 /* @class DistSeriesContainer
@@ -103,7 +104,8 @@ export class DistSeriesContainer extends Component {
       }.bind(this))
   }
   render() {
-    const {concept, concept_id, bundle, maxgap, seriesOfOne} = this.props;
+    const {concept, concept_id, bundle, maxgap, 
+            seriesOfOne, entityName} = this.props;
     let {title} = this.props;
     const {dists, ntiles} = this.state;
     if (dists) {
@@ -119,6 +121,7 @@ export class DistSeriesContainer extends Component {
                           bundle={bundle}
                           seriesOfOne={seriesOfOne}
                           title={title}
+                          entityName={entityName}
                           />
     } else {
       return <div className="waiting">Waiting for exposure data...</div>;
@@ -157,7 +160,8 @@ export class DistSeries extends Component {
     };
   }
   render() {
-    const {dists, ntiles, maxgap, bundle, seriesOfOne} = this.props;
+    const {dists, ntiles, maxgap, bundle, 
+            seriesOfOne, entityName} = this.props;
     let {title} = this.props;
     const {useFullHeight, DistChartType, ChartTypes} = this.state;
     console.log(bundle);
@@ -185,6 +189,7 @@ export class DistSeries extends Component {
                 bundle={bundle}
                 bundleType={bundleType}
                 seriesOfOne={seriesOfOne}
+                entityName={entityName}
                 />;
     });
     let fullHeightCheckbox = seriesOfOne ? '' :
@@ -257,7 +262,8 @@ export class ExpGapDist extends Component {
   }
   render() {
     const {dist, allDists, distNum, bundleType, 
-            useFullHeight, DistChart, seriesOfOne} = this.props;
+            useFullHeight, DistChart, seriesOfOne,
+            entityName} = this.props;
 
     let chart1 = '', chart2 = '';
     const distCnt = dist.lookup('duration').aggregate(_.sum, 'count');
@@ -275,6 +281,8 @@ export class ExpGapDist extends Component {
                 useFullHeight={useFullHeight}
                 distCnt={distCnt}
                 maxCnt={maxCnt}
+                measureName="gap"
+                entityName={entityName}
               />;
     }
     let overlaps = '';
@@ -290,28 +298,30 @@ export class ExpGapDist extends Component {
                 useFullHeight={useFullHeight}
                 distCnt={distCnt}
                 maxCnt={maxCnt}
+                measureName="overlap"
+                entityName={entityName}
               />;
     }
     if (distNum === 1 && !seriesOfOne) {
       gaps = <div><br/><br/>
                 No gap<br/>preceding first <br/>
                 {bundleType.toLowerCase()}</div>;
-			if (overlaps) {
-				overlaps = <div><br/><br/>
+      if (overlaps) {
+        overlaps = <div><br/><br/>
                 No overlap<br/>on first <br/>
                 {bundleType.toLowerCase()}</div>;
-			}
+      }
     }
-		if (overlaps) {
-			overlaps =
+    if (overlaps) {
+      overlaps =
                 <Col md={6} style={{padding:0}} className="gapdist">
                   Overlaps<br/>
                   {overlaps}
                 </Col>
-		}
+    }
     return (<div className="expgapdist">
               <Row style={{margin:0}}>
-								{overlaps}
+                {overlaps}
                 <Col md={6} style={{padding:0}} className="gapdist">
                   Gaps<br/>
                   {gaps}
@@ -329,6 +339,8 @@ export class ExpGapDist extends Component {
                       useFullHeight={useFullHeight}
                       distCnt={distCnt}
                       maxCnt={maxCnt}
+                      measureName="duration"
+                      entityName={entityName}
                     />
                 </Col>
               </Row>
@@ -354,7 +366,7 @@ export class SmallChart extends Component {
               width, height,
               _.merge(layoutDefaults, svgLayoutSettings));
 
-    this.state = {lo, };
+    this.state = {lo, ttContent: 'waiting for tooltip content'};
   }
   componentDidMount(recs) {
     const {distNum, getX, getY} = this.props;
@@ -386,6 +398,13 @@ export class SmallChart extends Component {
   render(insides) {
     const {lo, y, x} = this.state;
     return (
+            <OverlayTrigger 
+                placement="bottom" 
+                overlay={
+                  <Tooltip id="tooltip-distchart">
+                    {this.state.ttContent}
+                  </Tooltip>
+                }>
               <svg  width={lo.w()}
                     height={lo.h()}
                     ref={(svg) => { 
@@ -410,6 +429,7 @@ export class SmallChart extends Component {
                     {insides}
                 </g>
               </svg>
+            </OverlayTrigger>
     );
   }
 }
@@ -523,10 +543,11 @@ export class CumulativeDistFunc extends SmallChart {
 }
 
 export class Histogram extends SmallChart {
-	// kde and histogram stuff from http://bl.ocks.org/jensgrubert/7777399
-	// updated for d3.v4
+  // kde and histogram stuff from http://bl.ocks.org/jensgrubert/7777399
+  // updated for d3.v4
   constructor(props) {
     super(props);
+    this.state.highlightedBar = null;
   }
   componentDidMount() {
     let {dist} = this.props;
@@ -534,7 +555,8 @@ export class Histogram extends SmallChart {
   }
   render() {
     const {dist, allDists, distNum, getX, getY, 
-            useFullHeight, distCnt, maxCnt} = this.props;
+            useFullHeight, distCnt, maxCnt,
+            measureName, entityName} = this.props;
     const {lo, y, x, xAxis, yAxis} = this.state;
     var numHistBins = 10; // number of bins for the histogram
     var calcHistBinsAutmoatic = true; // if true, the number of bins are calculated automatically and
@@ -557,11 +579,11 @@ export class Histogram extends SmallChart {
     //x.domain(d3.extent(data, function(d) { return d.x; })).nice();
     //y.domain(d3.extent(data, function(d) { return d.y; })).nice();
 
-		/*
+    /*
     const recs = dist.records.filter(d=>getX(d) !== null);
-		if (!(recs.length > 1))
-			return super.render('');
-		*/
+    if (!(recs.length > 1))
+      return super.render('');
+    */
 
     //console.log(data.map(d=>`(${d.x},${d.y})`).join(' '));
     //console.log(recs);
@@ -597,12 +619,13 @@ export class Histogram extends SmallChart {
     
     //console.log(svg.datum(kde(numbers)));
 
+    let barWidth = lo.chartWidth() / data.length;
+    /* replacing d3 append with react below
     svg.selectAll(".bar").remove();
-		// this calc might be wrong, not sure if i need Math.abs
-		//let barWidth = x(Math.abs(data[0].x1 - data[0].x0) + x.domain()[0]) - 1;
-		let barWidth = lo.chartWidth() / data.length;
-		//console.log(barWidth);
-		if (barWidth < 0) debugger;
+    // this calc might be wrong, not sure if i need Math.abs
+    //let barWidth = x(Math.abs(data[0].x1 - data[0].x0) + x.domain()[0]) - 1;
+    //console.log(barWidth);
+    if (barWidth < 0) debugger;
     svg.selectAll(".bar")
         .data(data)
       .enter().insert("rect", ".axis")
@@ -612,6 +635,39 @@ export class Histogram extends SmallChart {
         .attr("y", function(d) { return y(d.length); })
         .attr("width", barWidth - .6)
         .attr("height", function(d) { return lo.chartHeight() - y(d.length); });
+    */
+    let bars = data.map((bar,i) => {
+      //let ypos = _.sum(dist.records.slice(0,i).map(d=>d.count));
+      let ttContent = 
+            <p>
+              {commify(bar.length)} {entityName}s {' '}
+              with {measureName} {' '}
+              between {bar.x0} and {bar.x1}.<br/>
+              Mean: {Math.round(_.mean(bar)*100)/100}<br/>
+              Median: {Math.round(_.median(bar)*100)/100}<br/>
+            </p>;
+      return <rect  key={i}
+                    x={i * barWidth + .3}
+                    width={barWidth - .6}
+                    y={y(bar.length)}
+                    height={lo.chartHeight() - y(bar.length)}
+                    fill={
+                      i === this.state.highlightedBar
+                      ? 'blue'
+                      : 'gray'
+                    }
+                    className="bar" 
+                    onMouseOver={()=>{
+                      this.setState({
+                        ttContent,
+                        highlightedBar: i,
+                      });
+                    }}
+                    />;
+    });
+    return super.render(
+      <g>{bars}</g>
+    );
     
     /* too slow...probably easy to make faster
     //var kde = kernelDensityEstimator(epanechnikovKernel(7), x.ticks(100));

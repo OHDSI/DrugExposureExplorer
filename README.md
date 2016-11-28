@@ -39,14 +39,17 @@ Need to write this
   - put patients in datatable, improve formatting
   - show collapsed view of patient with just timeline
 - distributions
-  - cumulative distribution function
+  - ~~cumulative distribution function~~
+  - ~~histogram~~
+    - hover tooltip
+    - hover affects sample patients
   - add KDE, maybe do brushing on the KDE
   - Carsten's idea: break up gaps by exposure duration blocks
   - full height on hover
   - legend text for charts
   - hover over exposure duration
     - tooltip for all recs with same duration
-    - filter gaps (and maybe all other distributions
+    - filter gaps (and maybe all other distributions)
       to records tied to hover region
   - gap duration
     - brush gap region to select subsets of patients

@@ -195,3 +195,6 @@ function functor(val, ...args) { // d3.functor gone in d3.v4
 		return val(...args);
 	return () => val;
 }
+
+export const commify = d3.format(',');
+

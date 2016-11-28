@@ -24,12 +24,12 @@ var d3 = require('d3');
 //var d3tip = require('d3-tip');
 if (DEBUG) window.d3 = d3;
 import * as util from './utils';
+import {commify} from './utils';
 import DataTable from './components/FixedDataTableSortFilt';
 import {DistSeriesContainer} from './components/DistCharts';
 import {SparkBarsChart} from './components/SparkBars';
 import {ExposureExplorer} from './components/ExposureExplorer';
 
-var commify = d3.format(',');
 export class RollupListContainer extends Component {
   constructor(props) {
     super(props);

@@ -187,6 +187,7 @@ class Content extends Component {
                   maxgap={maxgap}
                   seriesOfOne={true}
                   title={`All eras together, ${maxgap} maximum gap`}
+                  entityName="era"
               />
     return (<div ref='container' className="concept-detail">
               <SampleTimelinesContainer
@@ -203,12 +204,16 @@ class Content extends Component {
                   maxgap={maxgap}
                   seriesOfOne={true}
                   title="All exposures together"
+                  entityName="exposure"
               />
               <DistSeriesContainer 
                   concept={concept}
                   concept_id={concept_id} 
                   bundle={bundle}
                   maxgap={maxgap}
+                  entityName={
+                    bundle === 'exp' ? 'exposure' : bundle
+                  }
               />
             </div>);
   }
@@ -419,9 +424,18 @@ export class Timeline extends Component {
 
     //return <pre>{JSON.stringify(eras, null, 2)}</pre>;
     let exposureBars = exposures.map((exposure,i) => {
+          //<pre>{JSON.stringify(exposure,null,2)}</pre>
       const exposurett = (
         <Tooltip id="tooltip-exposure" key={i}>
-          <pre>{JSON.stringify(exposure,null,2)}</pre>
+          Exposure {exposure.exp_num} {' '}
+          ({exposure.drug_name}) {' '}
+          has {exposure.days_supply} days supply, {' '}
+          starts {exposure.days_from_first} days {' '}
+          from first exposure, {' '}
+          starts {exposure.days_from_latest} days {' '}
+          from previous exposure (
+            {exposure.exp_gap_days} gap / {' '}
+            {exposure.exp_overlap_days} overlap).
         </Tooltip>
       );
       return (
