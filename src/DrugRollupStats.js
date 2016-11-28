@@ -37,7 +37,7 @@ export class RollupListContainer extends Component {
   }
   componentDidMount() {
     window.util = util;
-    util.cachedJsonFetch('http://0.0.0.0:3000/api/DrugRollupStats')
+    util.cachedJsonFetch('http://0.0.0.0:3000/api/DrugRollupStats', {}, 'DrugRollupStats')
       .then(function(json) {
         let rollups = this.dataPrep(json);
         this.setState({rollups});

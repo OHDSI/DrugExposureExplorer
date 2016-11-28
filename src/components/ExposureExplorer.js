@@ -26,6 +26,7 @@ if (DEBUG) window.d3 = d3;
 import * as util from '../utils';
 import DataTable from './FixedDataTableSortFilt';
 import {DistSeriesContainer} from './DistCharts';
+import {distfetch, recsfetch} from '../appData';
 
 var commify = d3.format(',');
 
@@ -230,7 +231,7 @@ export class SampleTimelinesContainer extends Component {
     };
     util.cachedPostJsonFetch(
       'http://localhost:3000/api/People/frequentUsersPost',
-      params)
+      params, 'frequentUsers')
     .then(function(json) {
       this.setState({frequentUsers:json});
     }.bind(this))
@@ -240,14 +241,14 @@ export class SampleTimelinesContainer extends Component {
     const {frequentUsers} = this.state;
     if (frequentUsers) {
       let timelines = frequentUsers.map(person => {
-        let personId = person.person_id;
-        return <TimelineContainer   key={personId}
+        let person_id = person.person_id;
+        return <TimelineContainer   key={person_id}
                                     width={width}
                                     concept={concept}
                                     concept_id={concept_id}
                                     bundle={bundle}
                                     maxgap={maxgap}
-                                    personId={personId} />
+                                    person_id={person_id} />
       })
       return <div className="timelines">{timelines}</div>;
     } else {
@@ -276,13 +277,15 @@ export class TimelineContainer extends Component {
     this.fetchExposures();
   }
   fetchExposures() {
-    const {personId, concept_id, concept} = this.props;
+    const {person_id, concept_id, concept} = this.props;
     this.setState({fetchingExposures:true});
     let params = { concept_id:concept_id,
-                   personid: personId };
-    util.cachedPostJsonFetch(
-      'http://localhost:3000/api/drug_exposure_rollups/postCall',
-      params)
+                   person_id: person_id,
+                   personid: person_id,
+                   bundle: 'exp',
+                  };
+    recsfetch(params, 'personExposures')
+    //util.cachedPostJsonFetch( 'http://localhost:3000/api/drug_exposure_rollups/postCall', params, 'personExposures')
     .then(function(json) {
       this.setState({exposures:json, fetchingExposures:false});
     }.bind(this))
@@ -292,32 +295,35 @@ export class TimelineContainer extends Component {
       this.setState({eras:[]});
       return;
     }
-    const {personId, concept_id, concept} = this.props;
+    const {person_id, concept_id, concept} = this.props;
     maxgap = parseInt(maxgap, 10);
     if (isNaN(maxgap)) return;
     this.setState({fetchingEras:true})
     let params = { maxgap,
                    concept_id:concept_id,
-                   personid: personId };
-    util.cachedPostJsonFetch(
-      'http://localhost:3000/api/eras/postCall', params)
+                   bundle: 'era',
+                   person_id: person_id,
+                   personid: person_id 
+                  };
+    //util.cachedPostJsonFetch('http://localhost:3000/api/eras/postCall', params, 'personEras')
+    recsfetch(params, 'personEras')
     .then(function(json) {
       this.setState({eras:json, fetchingEras:false});
     }.bind(this))
   }
   render() {
     const {exposures, eras, fetchingExposures, fetchingEras} = this.state;
-    const {bundle, width, concept, personId} = this.props;
+    const {bundle, width, concept, person_id} = this.props;
     if( fetchingExposures || fetchingEras ) {
       return (
         <div className="waiting">
-          {fetchingExposures ? `Fetching exposures for ${personId} / ${concept.toString()}` : ''}
-          {fetchingEras ? `Fetching eras for ${personId} / ${concept.toString()}` : ''}
+          {fetchingExposures ? `Fetching exposures for ${person_id} / ${concept.toString()}` : ''}
+          {fetchingEras ? `Fetching eras for ${person_id} / ${concept.toString()}` : ''}
         </div>);
     } else if (eras.length || (bundle==='exp' && exposures.length)) {
       return <Timeline exposures={exposures} eras={eras} 
                 width={width} 
-                concept={concept} personId={personId}/>;
+                concept={concept} person_id={person_id}/>;
     }
     return <div>Waiting for something to happen</div>;
   }
@@ -330,7 +336,13 @@ export class Timeline extends Component {
     };
   }
   componentDidMount() {
-    const {eras, exposures, concept, personId} = this.props;
+    this.setup();
+  }
+  componentWillReceiveProps() {
+    this.setup();
+  }
+  setup() {
+    const {eras, exposures, concept, person_id} = this.props;
     let lastday;
     if (eras && eras.length) {
       lastday = _.last(eras).days_from_first_era +
@@ -376,6 +388,7 @@ export class Timeline extends Component {
                       .uniq()
                       .sort()
                       .value();
+    //console.log(drugList);
     const seeThroughColors = d3.schemeCategory20
             .map(d => {
               let c = d3.color(d);
@@ -397,7 +410,7 @@ export class Timeline extends Component {
     //d3.select(node).select('svg').call(tip);
   }
   render() {
-    const {exposures, eras, concept, personId} = this.props;
+    const {exposures, eras, concept, person_id} = this.props;
     const {height, lo, x, xAxis, lastday, drugList, drugColors} = this.state;
     if (!lo) 
       return (<div ref="timelinediv" className="timeline">
@@ -407,7 +420,7 @@ export class Timeline extends Component {
     //return <pre>{JSON.stringify(eras, null, 2)}</pre>;
     let exposureBars = exposures.map((exposure,i) => {
       const exposurett = (
-        <Tooltip id="tooltip-exposure">
+        <Tooltip id="tooltip-exposure" key={i}>
           <pre>{JSON.stringify(exposure,null,2)}</pre>
         </Tooltip>
       );
@@ -416,6 +429,7 @@ export class Timeline extends Component {
                   key={i}
                   placement="bottom" overlay={exposurett}>
                 <rect  className="exposure"
+                    key={i}
                     data-expnum={i}
                     x={x(exposure.days_from_first)} 
                     width={x(exposure.days_supply)}
@@ -427,7 +441,7 @@ export class Timeline extends Component {
     });
     let eraBars = eras.map((era,i) => {
       const eratt = (
-        <Tooltip id="tooltip-era">
+        <Tooltip id="tooltip-era" key={i}>
           Era {era.era_num} combines {era.exposures} exposures
           with {era.total_days_supply} total days supply
           over {era.era_days} days in era.
@@ -474,16 +488,16 @@ export class Timeline extends Component {
         Specific drugs: {drugLegend}
       </div>;
     let erasDesc = '';
-    if (eras.length) {
+    if (eras.length) {   // FIX
       erasDesc = 
         <div>
           <strong>{eras.length} eras:</strong> {' '}
           {_.sum(eras.map(e=>e.era_days))} days in eras, {' '}
-          {_.sum(eras.map(e=>e.gap_days))} gap days between eras, {' '}
+          {_.sum(eras.map(e=>e.btn_era_gap_days))} gap days between eras, {' '}
           {_.sum( exposures
                   .map(d => d.days_from_latest)
                   .filter(d => d > 0)
-          ) - _.sum(eras.map(e=>e.gap_days))} gap days within exposures, {' '}
+          ) - _.sum(eras.map(e=>e.btn_era_gap_days))} gap days within exposures, {' '}
           <span title="Medication Possession Ratio">MPR</span> {' '}
           ignoring days between eras: {' '}
           { Math.round(
@@ -494,7 +508,7 @@ export class Timeline extends Component {
     }
     return (<div ref="timelinediv" className="timeline">
               <Button onClick={ ()=> this.setState({ descriptionOpen: !this.state.descriptionOpen })}>
-                Person {personId}
+                Person {person_id}
               </Button>
               <Panel className="description" collapsible 
                       expanded={this.state.descriptionOpen}>

@@ -71,10 +71,17 @@ export class DistSeriesContainer extends Component {
     if (bundle === 'era' || bundle === 'allera') {
       params.maxgap = maxgap;
     }
-    let gaps = distfetch(params);
-    params.ntileOrder = 'duration';
-    let exps = distfetch(params);
-    Promise.all([gaps, exps])
+    let distsToFetch = ['gap', 'duration'];
+    if (!params.bundle.match(/era/)) {
+      distsToFetch.unshift('overlap');
+      // FOR ERAS, SHOULD DO WITHIN-ERA OVERLAP, BUT NOT READY
+    }
+    let promises = distsToFetch.map(
+          d => {
+            params.ntileOrder = d;
+            return distfetch(params, `${d} distributions`);
+          });
+    Promise.all(promises)
       .then(function(recs) {
         let dists;
         if (params.bundle === 'exp') {
@@ -270,13 +277,41 @@ export class ExpGapDist extends Component {
                 maxCnt={maxCnt}
               />;
     }
+    let overlaps = '';
+    if (dist.lookup('overlap')) {
+      overlaps = <DistChart
+                dist={dist.lookup('overlap')}
+                allDists={allDists}
+                distNum={distNum}
+                getX={d=>d.avg}
+                getY={(d,i)=>
+                  _.sum(dist.lookup('overlap').records.slice(0,i).map(d=>d.count))
+                }
+                useFullHeight={useFullHeight}
+                distCnt={distCnt}
+                maxCnt={maxCnt}
+              />;
+    }
     if (distNum === 1 && !seriesOfOne) {
       gaps = <div><br/><br/>
                 No gap<br/>preceding first <br/>
                 {bundleType.toLowerCase()}</div>;
+			if (overlaps) {
+				overlaps = <div><br/><br/>
+                No overlap<br/>on first <br/>
+                {bundleType.toLowerCase()}</div>;
+			}
     }
+		if (overlaps) {
+			overlaps =
+                <Col md={6} style={{padding:0}} className="gapdist">
+                  Overlaps<br/>
+                  {overlaps}
+                </Col>
+		}
     return (<div className="expgapdist">
               <Row style={{margin:0}}>
+								{overlaps}
                 <Col md={6} style={{padding:0}} className="gapdist">
                   Gaps<br/>
                   {gaps}
@@ -488,6 +523,8 @@ export class CumulativeDistFunc extends SmallChart {
 }
 
 export class Histogram extends SmallChart {
+	// kde and histogram stuff from http://bl.ocks.org/jensgrubert/7777399
+	// updated for d3.v4
   constructor(props) {
     super(props);
   }
@@ -519,6 +556,12 @@ export class Histogram extends SmallChart {
     y.range([lo.chartHeight(), 0])
     //x.domain(d3.extent(data, function(d) { return d.x; })).nice();
     //y.domain(d3.extent(data, function(d) { return d.y; })).nice();
+
+		/*
+    const recs = dist.records.filter(d=>getX(d) !== null);
+		if (!(recs.length > 1))
+			return super.render('');
+		*/
 
     //console.log(data.map(d=>`(${d.x},${d.y})`).join(' '));
     //console.log(recs);
@@ -555,13 +598,19 @@ export class Histogram extends SmallChart {
     //console.log(svg.datum(kde(numbers)));
 
     svg.selectAll(".bar").remove();
+		// this calc might be wrong, not sure if i need Math.abs
+		//let barWidth = x(Math.abs(data[0].x1 - data[0].x0) + x.domain()[0]) - 1;
+		let barWidth = lo.chartWidth() / data.length;
+		//console.log(barWidth);
+		if (barWidth < 0) debugger;
     svg.selectAll(".bar")
         .data(data)
       .enter().insert("rect", ".axis")
         .attr("class", "bar")
-        .attr("x", function(d) { return x(d.x0) + 1; })
+        //.attr("x", function(d) { return x(d.x0) + 1; })
+        .attr("x", function(d,i) { return i * barWidth + .3; })
         .attr("y", function(d) { return y(d.length); })
-        .attr("width", x(data[0].x1 - x(data[0].x0) - 1))
+        .attr("width", barWidth - .6)
         .attr("height", function(d) { return lo.chartHeight() - y(d.length); });
     
     /* too slow...probably easy to make faster

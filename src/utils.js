@@ -43,14 +43,21 @@ function jsonFetch(url, opts={}) {
 			return results.json();
 		});
 }
-export function cachedPostJsonFetch(url, params={}) {
+export function cachedPostJsonFetch(url, params={}, queryName) {
 	var qs = _.map(params, (v,k) => `${k}=${v}`).join('&');
-	console.log(`${url.replace(/post/,'get').replace(/Post/,'Get')}?${qs}`);
+	var get = `${url.replace(/post/,'get').replace(/Post/,'Get')}?${qs}`;
+	console.log(queryName, get);
 	return cachedJsonFetch(url, {
 						method: 'post',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify(params),
-					});
+					}).then(function(json) {
+            if (json.error) {
+              json.error.url = get;
+              json.error.queryName = queryName;
+            }
+            return json;
+          })
 }
 export function storagePut(key, val, store = sessionStorage) {
 	store[key] = LZString.compressToBase64(JSON.stringify(val));
