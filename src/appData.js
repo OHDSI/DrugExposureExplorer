@@ -20,6 +20,7 @@ export function recsfetch(params, queryName) {
   } else {
     params.noLimit = true;
   }
+  params.queryName = queryName || 'no query name';
 
   return (util.cachedPostJsonFetch(
           //'http://localhost:3000/api/daysupplies/dsgpPost', params)
@@ -39,7 +40,7 @@ export function distfetch(params, queryName) {
   if (typeof maxgap !== "undefined") {
     params.maxgap = parseInt(maxgap, 10);
   }
-  params.ntileOrder = params.ntileOrder || 'gap'; // or duration
+  params.measurename = params.measurename || 'gap'; // or duration
   params.bundle = params.bundle || 'exp'; // or era or single
 
   params.aggregate = true;
@@ -70,14 +71,29 @@ export function distfetch(params, queryName) {
                 rec.avg = parseFloat(rec.avg);
                 if (isNaN(rec.avg))
                   rec.avg = null;
-                // ntile, min and max already numbers
-                rec.ntileOrder = rec.ntileorder;
-                delete rec.ntileorder;
                 return rec;
               }
             );
+            recs.json = json;
             return recs;
             //var byExp = _.supergroup(recs, ['exp_num','ntile']);
             //return byExp;
+          }));
+}
+export function frequentUsers(params, queryName) {
+  params = _.clone(params);
+  let {concept_id, sampleCnt} = params;
+  if (!_.isNumber(concept_id)) throw new Error("need concept_id param, number");
+  if (!_.isNumber(sampleCnt)) throw new Error("need sampleCnt param, number");
+
+  params.cdmSchema = 'omop5_synpuf_5pcnt';
+  params.queryName = queryName;
+
+  return (util.cachedPostJsonFetch(
+          'http://localhost:3000/api/cdms/sampleUsersPost', params, queryName)
+          .then(function(json) {
+            if (json.error)
+              console.error(json.error.message, json.error.queryName, json.error.url);
+            return json;
           }));
 }

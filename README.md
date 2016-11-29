@@ -58,12 +58,13 @@ Need to write this
   - make height consistent
   - fix choppy gap distributions (or are those meaningful?)
 - more distribution charts for overall drug characteristics:
-  - single exposure days
-  - single gap days (with overlap)
-  - total exposure days
-  - total gap days (with overlap)
-  - gap days between exposures
-  - gap days between eras
+  - ~~single exposure days (called this All Exposures Together)~~
+  - ~~single gap days (with overlap)~~
+  - total exposure days per patient
+  - total gap days (with overlap) per patient
+  - ~~total exposure days per era~~
+  - ~~gap days between eras~~
+  - gap, overlap days within eras
 - connect to other data
   - overall patient timelines for individual patients
   - conditions, concomitant medications, measurements, demographics, etc.

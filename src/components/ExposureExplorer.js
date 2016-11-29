@@ -26,7 +26,10 @@ if (DEBUG) window.d3 = d3;
 import * as util from '../utils';
 import DataTable from './FixedDataTableSortFilt';
 import {DistSeriesContainer} from './DistCharts';
-import {distfetch, recsfetch} from '../appData';
+import {distfetch, recsfetch, frequentUsers} from '../appData';
+import {pubsub} from '../EventEmitter';
+
+console.log(pubsub);
 
 var commify = d3.format(',');
 
@@ -72,7 +75,8 @@ export class ExposureExplorer extends Component {
         content = <Content 
                     concept={concept}
                     concept_id={concept_id}
-                    {...this.state.settings}
+                    {...this.state.settings} // get rid of this
+                    settings={this.state.settings}
                   />;
       }
     }
@@ -101,7 +105,40 @@ export class ExplorerControls extends Component {
     this.state = {
       maxgap: 30,
       bundle: 'era',
+      sampleCnt: 2,
+      sampleDesc: 'with most exposures',
+      sampleParams: {},
     };
+    pubsub.addListener('sampleParams',
+        (sp) => {
+          let sampleDesc;
+          if (sp.to || sp.from) {
+            if (sp.measurename === 'gap') {
+              sampleDesc = 
+                ` ${sp.measurename}s between
+                  ${sp.entityName}s of
+                  ${sp.from} to ${sp.to} days`;
+            } else if (sp.measurename === 'overlap') {
+              sampleDesc = 
+                ` ${sp.measurename}s between
+                  ${sp.entityName}s of
+                  ${sp.from} to ${sp.to} days`;
+            } else if (sp.measurename === 'duration') {
+              sampleDesc = 
+                ` ${sp.entityName}s of
+                  ${sp.measurename} between
+                  ${sp.from} to ${sp.to} days`;
+            } else {
+              sampleDesc = 
+                `don't know how to make text for
+                  measure ${sp.measurename}, {' '}
+                  entity ${sp.entityName}, {' '}
+                  range ${sp.from} to ${sp.to} days`;
+            }
+          }
+          this.setState({sampleParams: sp, sampleDesc});
+          //console.log(sp);
+        });
   }
   componentDidMount() {
     const {sendSettings} = this.props;
@@ -109,7 +146,7 @@ export class ExplorerControls extends Component {
   }
   shouldComponentUpdate(nextProps, nextState) {
     if (!_.eq(nextState, this.state)) {
-      console.log('ExplorerControl new state', nextState);
+      //console.log('ExplorerControl new state', nextState);
       return true;
     }
     return false;
@@ -162,6 +199,17 @@ export class ExplorerControls extends Component {
               this.setState({maxgap:evt.target.value})
             }} />
         </label>
+        <br/>
+        <label>
+          Retrieve {' '}
+          <input type="number" value={this.state.sampleCnt}
+            placeholder="Sample patients"
+            onChange={evt=>{
+              this.setState({sampleCnt:evt.target.value})
+            }} /> {' '}
+          sample patients {' '}
+          with {this.state.sampleDesc}
+        </label>
       </div>
     );
     /*
@@ -178,7 +226,8 @@ export class ExplorerControls extends Component {
 }
 class Content extends Component {
   render() {
-    const {concept, concept_id, width, bundle, maxgap} = this.props;
+    const {concept, concept_id, settings} = this.props;
+    const {sampleParams, sampleCnt, maxgap, bundle} = settings;
     const allEras = bundle === 'exp' ? '' :
               <DistSeriesContainer 
                   concept={concept}
@@ -191,10 +240,11 @@ class Content extends Component {
               />
     return (<div ref='container' className="concept-detail">
               <SampleTimelinesContainer
-                  width={width}
                   bundle={bundle}
                   maxgap={maxgap}
                   concept={concept}
+                  sampleCnt={sampleCnt}
+                  sampleParams={sampleParams}
                   concept_id={concept_id} />
               {allEras}
               <DistSeriesContainer 
@@ -223,32 +273,47 @@ export class SampleTimelinesContainer extends Component {
     super(props);
     this.state = { 
       frequentUsers: null,
-      howmany: 2,
     };
   }
   componentDidMount() {
-    const {concept_id, bundle} = this.props;
-    const {howmany} = this.state;
+    this.fetchPatients(this.props);
+  }
+  componentWillReceiveProps(nextProps) {
+    console.log(nextProps);
+    this.fetchPatients(nextProps);
+  }
+  fetchPatients(props) {
+    const {concept_id, bundle, maxgap,
+            sampleCnt, sampleParams} = props;
     let params = {
-          howmany,
+          sampleCnt: parseInt(sampleCnt,10),
           concept_id,
           bundle,
+          maxgap: parseInt(maxgap,10),
+          measurename: 'exposures',
+          //queryName: 'frequentUsers', // redundant, fix
     };
-    util.cachedPostJsonFetch(
-      'http://localhost:3000/api/People/frequentUsersPost',
-      params, 'frequentUsers')
+    params = _.merge( params, _.pick(sampleParams, 
+      'measurename', 'from','to', 'entityName'));
+
+    // fix all this
+    if (params.measurename === 'exposures')
+      params.entityName = 'exposure';
+
+    //util.cachedPostJsonFetch( 'http://localhost:3000/api/People/frequentUsersPost', params, 'frequentUsers')
+    console.log('calling frequentUsers with', params);
+    frequentUsers(params, 'frequentUsers')
     .then(function(json) {
-      this.setState({frequentUsers:json});
+      let ids = _.uniq(json.map(d=>d.person_id)).slice(0, sampleCnt)
+      this.setState({frequentUsers:ids});
     }.bind(this))
   }
   render() {
-    const {concept, concept_id, width, bundle, maxgap} = this.props;
+    const {concept, concept_id, bundle, maxgap, sampleParams} = this.props;
     const {frequentUsers} = this.state;
     if (frequentUsers) {
-      let timelines = frequentUsers.map(person => {
-        let person_id = person.person_id;
+      let timelines = frequentUsers.map(person_id => {
         return <TimelineContainer   key={person_id}
-                                    width={width}
                                     concept={concept}
                                     concept_id={concept_id}
                                     bundle={bundle}
@@ -283,6 +348,7 @@ export class TimelineContainer extends Component {
   }
   fetchExposures() {
     const {person_id, concept_id, concept} = this.props;
+    if (this.state.gotExposures) return;
     this.setState({fetchingExposures:true});
     let params = { concept_id:concept_id,
                    person_id: person_id,
@@ -292,7 +358,9 @@ export class TimelineContainer extends Component {
     recsfetch(params, 'personExposures')
     //util.cachedPostJsonFetch( 'http://localhost:3000/api/drug_exposure_rollups/postCall', params, 'personExposures')
     .then(function(json) {
-      this.setState({exposures:json, fetchingExposures:false});
+      this.setState({exposures:json, 
+                    fetchingExposures:false,
+                    gotExposures:true});
     }.bind(this))
   }
   fetchEras(bundle, maxgap) {
@@ -300,6 +368,7 @@ export class TimelineContainer extends Component {
       this.setState({eras:[]});
       return;
     }
+    if (this.state.gotEras) return;
     const {person_id, concept_id, concept} = this.props;
     maxgap = parseInt(maxgap, 10);
     if (isNaN(maxgap)) return;
@@ -313,12 +382,13 @@ export class TimelineContainer extends Component {
     //util.cachedPostJsonFetch('http://localhost:3000/api/eras/postCall', params, 'personEras')
     recsfetch(params, 'personEras')
     .then(function(json) {
-      this.setState({eras:json, fetchingEras:false});
+      this.setState({eras:json, fetchingEras:false,
+                    gotEras:true});
     }.bind(this))
   }
   render() {
     const {exposures, eras, fetchingExposures, fetchingEras} = this.state;
-    const {bundle, width, concept, person_id} = this.props;
+    const {bundle, concept, person_id} = this.props;
     if( fetchingExposures || fetchingEras ) {
       return (
         <div className="waiting">
@@ -327,7 +397,6 @@ export class TimelineContainer extends Component {
         </div>);
     } else if (eras.length || (bundle==='exp' && exposures.length)) {
       return <Timeline exposures={exposures} eras={eras} 
-                width={width} 
                 concept={concept} person_id={person_id}/>;
     }
     return <div>Waiting for something to happen</div>;

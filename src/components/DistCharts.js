@@ -25,6 +25,7 @@ import _ from 'supergroup';
 import * as util from '../utils';
 import {commify} from '../utils';
 import {distfetch} from '../appData';
+import {pubsub} from '../EventEmitter';
 
 /* @class DistSeriesContainer
  *  data fetcher for DistSeries, a series of TimeDists
@@ -57,7 +58,7 @@ export class DistSeriesContainer extends Component {
     if (nextProps.concept_id !== this.props.concept_id ||
         nextProps.maxgap !== this.props.maxgap ||
         nextProps.bundle !== this.props.bundle ||
-        nextProps.ntileOrder !== this.props.ntileOrder)
+        nextProps.measurename !== this.props.measurename)
       this.fetchDists(concept_id, bundle, maxgap);
   }
   fetchDists(concept_id, bundle, maxgap) {
@@ -66,8 +67,8 @@ export class DistSeriesContainer extends Component {
             ntiles: this.state.ntiles,
             concept_id: concept_id,
             bundle, // exp, era, allexp, allera, single
-            //ntileOrder: 'duration',
-            ntileOrder: 'gap',
+            //measurename: 'duration',
+            measurename: 'gap',
           };
     if (bundle === 'era' || bundle === 'allera') {
       params.maxgap = maxgap;
@@ -79,24 +80,24 @@ export class DistSeriesContainer extends Component {
     }
     let promises = distsToFetch.map(
           d => {
-            params.ntileOrder = d;
-            return distfetch(params, `${d} distributions`);
+            params.measurename = d;
+            return distfetch(params, `${bundle} ${d} distributions`);
           });
     Promise.all(promises)
       .then(function(recs) {
         let dists;
         if (params.bundle === 'exp') {
           dists = _.supergroup(_.flatten(recs), 
-                      ['exp_num','ntileOrder','ntile']);
+                      ['exp_num','measurename','ntile']);
         } else if (params.bundle === 'era') {
           dists = _.supergroup(_.flatten(recs), 
-                      ['era_num','ntileOrder','ntile']);
+                      ['era_num','measurename','ntile']);
         } else if (params.bundle === 'allexp' ||
                    params.bundle === 'allera') {
           // do I need three levels to make it work like others?
           // probably
           dists = _.supergroup(_.flatten(recs), 
-                      [d=>'one group', 'ntileOrder','ntile']);
+                      [d=>'one group', 'measurename','ntile']);
         } else {
           throw new Error("not handling yet");
         }
@@ -164,7 +165,6 @@ export class DistSeries extends Component {
             seriesOfOne, entityName} = this.props;
     let {title} = this.props;
     const {useFullHeight, DistChartType, ChartTypes} = this.state;
-    console.log(bundle);
     let Dists = dists.map((dist,i) => {
       let bundleType;
       switch (bundle) {
@@ -281,7 +281,7 @@ export class ExpGapDist extends Component {
                 useFullHeight={useFullHeight}
                 distCnt={distCnt}
                 maxCnt={maxCnt}
-                measureName="gap"
+                measurename="gap"
                 entityName={entityName}
               />;
     }
@@ -298,7 +298,7 @@ export class ExpGapDist extends Component {
                 useFullHeight={useFullHeight}
                 distCnt={distCnt}
                 maxCnt={maxCnt}
-                measureName="overlap"
+                measurename="overlap"
                 entityName={entityName}
               />;
     }
@@ -339,7 +339,7 @@ export class ExpGapDist extends Component {
                       useFullHeight={useFullHeight}
                       distCnt={distCnt}
                       maxCnt={maxCnt}
-                      measureName="duration"
+                      measurename="duration"
                       entityName={entityName}
                     />
                 </Col>
@@ -556,7 +556,7 @@ export class Histogram extends SmallChart {
   render() {
     const {dist, allDists, distNum, getX, getY, 
             useFullHeight, distCnt, maxCnt,
-            measureName, entityName} = this.props;
+            measurename, entityName} = this.props;
     const {lo, y, x, xAxis, yAxis} = this.state;
     var numHistBins = 10; // number of bins for the histogram
     var calcHistBinsAutmoatic = true; // if true, the number of bins are calculated automatically and
@@ -641,7 +641,7 @@ export class Histogram extends SmallChart {
       let ttContent = 
             <p>
               {commify(bar.length)} {entityName}s {' '}
-              with {measureName} {' '}
+              with {measurename} {' '}
               between {bar.x0} and {bar.x1}.<br/>
               Mean: {Math.round(_.mean(bar)*100)/100}<br/>
               Median: {Math.round(_.median(bar)*100)/100}<br/>
@@ -662,6 +662,14 @@ export class Histogram extends SmallChart {
                         ttContent,
                         highlightedBar: i,
                       });
+                    }}
+                    onClick={()=>{
+                      pubsub.emitEvent(
+                        'sampleParams', 
+                        [{
+                          measurename, entityName,
+                          bar, from:bar.x0, to:bar.x1,
+                        }]);
                     }}
                     />;
     });

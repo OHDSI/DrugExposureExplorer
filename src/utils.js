@@ -56,6 +56,8 @@ export function cachedPostJsonFetch(url, params={}, queryName) {
               json.error.url = get;
               json.error.queryName = queryName;
             }
+            json.url = get;
+            json.queryName = queryName;
             return json;
           })
 }
