@@ -82,6 +82,7 @@ export class ExposureExplorer extends Component {
     }
     return (
         <Modal bsSize="lg"
+            dialogClassName="explorer-modal"
             show={this.state.showModal} 
             onHide={this.closeModal.bind(this)}
             >
@@ -191,6 +192,7 @@ export class ExplorerControls extends Component {
               Single Era per Patient
             </Radio>
         </label>
+        <br/>
         <label>Combine exposures to era with gap of no more than
           &nbsp;
           <input type="number" value={this.state.maxgap}

@@ -312,9 +312,11 @@ export class ExpGapDist extends Component {
                 {bundleType.toLowerCase()}</div>;
       }
     }
+    let cols = 6;
     if (overlaps) {
+      cols = 4;
       overlaps =
-                <Col md={6} style={{padding:0}} className="gapdist">
+                <Col md={cols} style={{padding:0}} className="gapdist">
                   Overlaps<br/>
                   {overlaps}
                 </Col>
@@ -322,11 +324,11 @@ export class ExpGapDist extends Component {
     return (<div className="expgapdist">
               <Row style={{margin:0}}>
                 {overlaps}
-                <Col md={6} style={{padding:0}} className="gapdist">
+                <Col md={cols} style={{padding:0}} className="gapdist">
                   Gaps<br/>
                   {gaps}
                 </Col>
-                <Col md={6} style={{padding:0}} className="distbars">
+                <Col md={cols} style={{padding:0}} className="distbars">
                   Duration<br/>
                   <DistChart
                       dist={dist.lookup('duration')}
