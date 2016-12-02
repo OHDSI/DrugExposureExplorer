@@ -5,7 +5,6 @@ module.exports = function(cdm){
   cdm.sampleUsersGet = cdm.sampleUsersPost = 
     function(cdmSchema, resultsSchema, concept_id, sampleCnt, 
              measurename, bundle, entityName, maxgap, from, to, queryName, cb) {
-      resultsSchema = cdmSchema + '_results';
       var ds = cdm.dataSource;
       let allParams = 
         {cdmSchema, resultsSchema, concept_id, queryName, sampleCnt, 
@@ -111,7 +110,7 @@ module.exports = function(cdm){
 
   var sampleUsersAccepts = [
       {arg: 'cdmSchema', type: 'string', required: true },
-      {arg: 'resultsSchema', type: 'string', required: false},
+      {arg: 'resultsSchema', type: 'string', required: true},
       {arg: 'concept_id', type: 'number', required: false},
       {arg: 'sampleCnt', type: 'number', required: false, default: 2},
       {arg: 'measurename', type: 'string', required: true, },
@@ -216,7 +215,7 @@ module.exports = function(cdm){
                 description: 'exp, era, or single'},
       //{arg: 'request', type: 'string', required: true},
       {arg: 'cdmSchema', type: 'string', required: false},
-      {arg: 'resultsSchema', type: 'string', required: false},
+      {arg: 'resultsSchema', type: 'string', required: true},
       {arg: 'concept_id', type: 'number', required: false},
       {arg: 'person_id', type: 'number', required: false},
       {arg: 'maxgap', type: 'number', required: false},

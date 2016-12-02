@@ -2,6 +2,9 @@ var d3 = require('d3');
 import _ from 'supergroup';
 import * as util from './utils';
 
+const cdmSchema = 'omop5_synpuf_5pcnt';
+const resultsSchema = 'omop5_synpuf_5pcnt_results';
+
 export function recsfetch(params, queryName) {
   params = _.clone(params);
   let {concept_id, bundle, maxgap, person_id} = params;
@@ -12,7 +15,8 @@ export function recsfetch(params, queryName) {
   params.bundle = params.bundle || 'exp'; // or era or single
 
   params.aggregate = false;
-  params.resultsSchema = 'omop5_synpuf_5pcnt_results';
+  params.resultsSchema = resultsSchema;
+  params.cdmSchema = cdmSchema;
 
   if (typeof params.person_id === 'undefined') {
     params.noLimit = false;
@@ -44,7 +48,8 @@ export function distfetch(params, queryName) {
   params.bundle = params.bundle || 'exp'; // or era or single
 
   params.aggregate = true;
-  params.resultsSchema = 'omop5_synpuf_5pcnt_results';
+  params.resultsSchema = resultsSchema;
+  params.cdmSchema = cdmSchema;
 
   params.noLimit = true;
 
@@ -86,8 +91,9 @@ export function frequentUsers(params, queryName) {
   if (!_.isNumber(concept_id)) throw new Error("need concept_id param, number");
   if (!_.isNumber(sampleCnt)) throw new Error("need sampleCnt param, number");
 
-  params.cdmSchema = 'omop5_synpuf_5pcnt';
   params.queryName = queryName;
+  params.resultsSchema = resultsSchema;
+  params.cdmSchema = cdmSchema;
 
   return (util.cachedPostJsonFetch(
           'http://localhost:3000/api/cdms/sampleUsersPost', params, queryName)
