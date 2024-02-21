@@ -1,6 +1,3 @@
-## [Demo](http://www.ohdsi.org/web/drugexposureexplorer/) ##
-
-
 ## Drug Utilization Visualization experiments ##
 
 - [Description](#description)
